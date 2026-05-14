@@ -442,7 +442,7 @@ class SettingsScreen extends ConsumerWidget {
                               .showSnackBar(
                             const SnackBar(
                               content: Text(
-                                  'Les mots de passe ne correspondent pas',
+                                  'Les mots de passe ne correspondent pas !',
                                   style: TextStyle(
                                       fontFamily:
                                           'Poppins')),

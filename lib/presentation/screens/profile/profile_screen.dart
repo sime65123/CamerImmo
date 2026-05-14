@@ -656,7 +656,7 @@ class _CreditScoreCard extends StatelessWidget {
                 SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Payez à temps pour améliorer votre score',
+                    'Payez à temps pour améliorer votre score !',
                     style: TextStyle(
                       fontFamily: 'Poppins',
                       fontSize: 12,
