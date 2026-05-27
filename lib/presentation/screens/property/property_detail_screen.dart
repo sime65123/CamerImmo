@@ -1290,9 +1290,8 @@ class _BottomActions extends StatelessWidget {
                   ? () {}
                   : null,
               icon: const Icon(
-                Icons.calendar_today_outlined,
-                size: 16,
-              ),
+                  Icons.calendar_today_outlined,
+                  size: 16),
               label: const Text(
                 'Demander une visite',
                 style: TextStyle(
@@ -1304,30 +1303,106 @@ class _BottomActions extends StatelessWidget {
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.primary,
                 side: const BorderSide(
-                  color: AppColors.primary,
-                  width: 1.5,
-                ),
+                    color: AppColors.primary, width: 1.5),
                 padding: const EdgeInsets.symmetric(
-                  vertical: 14,
-                ),
+                    vertical: 14),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                    borderRadius:
+                        BorderRadius.circular(12)),
               ),
             ),
           ),
 
           const SizedBox(width: 12),
 
-          // Bouton Contacter
+          // Bouton Contacter — fonctionnel
           Expanded(
             child: ElevatedButton.icon(
-              onPressed: () => context.go('/conversations'),
-              icon: const Icon(
-                Icons.phone_outlined,
-                size: 16,
-                color: Colors.white,
-              ),
+              onPressed: () async {
+                final currentUserId = Supabase
+                    .instance.client.auth.currentUser?.id;
+                if (currentUserId == null) return;
+
+                if (currentUserId == ownerId) {
+                  ScaffoldMessenger.of(context)
+                      .showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Vous ne pouvez pas vous écrire à vous-même',
+                        style: TextStyle(
+                            fontFamily: 'Poppins'),
+                      ),
+                      backgroundColor: AppColors.warning,
+                    ),
+                  );
+                  return;
+                }
+
+                try {
+                  // Chercher conversation existante
+                  final existing = await Supabase
+                      .instance.client
+                      .from('conversations')
+                      .select('id')
+                      .eq('property_id', propertyId)
+                      .eq('tenant_id', currentUserId)
+                      .maybeSingle();
+
+                  String conversationId;
+
+                  if (existing != null) {
+                    conversationId =
+                        existing['id'] as String;
+                  } else {
+                    // Créer nouvelle conversation
+                    final newConv = await Supabase
+                        .instance.client
+                        .from('conversations')
+                        .insert({
+                      'property_id': propertyId,
+                      'tenant_id': currentUserId,
+                      'landlord_id': ownerId,
+                      'tenant_unread': 0,
+                      'landlord_unread': 0,
+                    }).select().single();
+
+                    conversationId =
+                        (newConv as Map<String,
+                                dynamic>)['id']
+                            as String;
+                  }
+
+                  if (context.mounted) {
+                    context.go(
+                        '/chat/$conversationId');
+                  }
+                } catch (e) {
+                  debugPrint('Contact error: $e');
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context)
+                        .showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Erreur: $e',
+                          style: const TextStyle(
+                              fontFamily: 'Poppins',
+                              color: Colors.white),
+                        ),
+                        backgroundColor: AppColors.error,
+                        behavior:
+                            SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.circular(
+                                    12)),
+                        margin: const EdgeInsets.all(16),
+                      ),
+                    );
+                  }
+                }
+              },
+              icon: const Icon(Icons.phone_outlined,
+                  size: 16, color: Colors.white),
               label: const Text(
                 'Contacter',
                 style: TextStyle(
@@ -1340,11 +1415,10 @@ class _BottomActions extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 padding: const EdgeInsets.symmetric(
-                  vertical: 14,
-                ),
+                    vertical: 14),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                    borderRadius:
+                        BorderRadius.circular(12)),
                 elevation: 0,
               ),
             ),

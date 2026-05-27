@@ -7,8 +7,10 @@ import 'main_shell.dart';
 
 // ─── Providers ────────────────────────────────────────────────────────────────
 
-final userProfileProvider = FutureProvider<Map<String, dynamic>?>((ref) async {
-  final userId = Supabase.instance.client.auth.currentUser?.id;
+final userProfileProvider =
+    FutureProvider<Map<String, dynamic>?>((ref) async {
+  final userId =
+      Supabase.instance.client.auth.currentUser?.id;
   if (userId == null) return null;
   final response = await Supabase.instance.client
       .from('profiles')
@@ -18,26 +20,40 @@ final userProfileProvider = FutureProvider<Map<String, dynamic>?>((ref) async {
   return response as Map<String, dynamic>?;
 });
 
-final activeLeaseProvider = FutureProvider<Map<String, dynamic>?>((ref) async {
-  final userId = Supabase.instance.client.auth.currentUser?.id;
+final activeLeaseProvider =
+    FutureProvider<Map<String, dynamic>?>((ref) async {
+  final userId =
+      Supabase.instance.client.auth.currentUser?.id;
   if (userId == null) return null;
   final response = await Supabase.instance.client
       .from('leases')
-      .select('*, properties(title, neighborhood, city, monthly_rent)')
+      .select(
+          '*, properties(title, neighborhood, city, monthly_rent)')
       .eq('tenant_id', userId)
       .eq('status', 'actif')
       .maybeSingle();
   return response as Map<String, dynamic>?;
 });
 
-final recommendedPropertiesProvider =
-    FutureProvider<List<Map<String, dynamic>>>((ref) async {
-  final response = await Supabase.instance.client
+final selectedCategoryProvider =
+    StateProvider<String?>((ref) => null);
+
+final recommendedPropertiesProvider = FutureProvider
+    .family<List<Map<String, dynamic>>, String?>(
+        (ref, category) async {
+  var query = Supabase.instance.client
       .from('properties')
       .select('*, property_images(url, is_primary)')
-      .eq('status', 'disponible')
+      .eq('status', 'disponible');
+
+  if (category != null) {
+    query = query.eq('property_type', category);
+  }
+
+  final response = await query
       .order('created_at', ascending: false)
-      .limit(10);
+      .limit(20);
+
   return (response as List)
       .map((e) => Map<String, dynamic>.from(e as Map))
       .toList();
@@ -45,13 +61,21 @@ final recommendedPropertiesProvider =
 
 final landlordPropertiesProvider =
     FutureProvider<List<Map<String, dynamic>>>((ref) async {
-  final userId = Supabase.instance.client.auth.currentUser?.id;
+  final userId =
+      Supabase.instance.client.auth.currentUser?.id;
   if (userId == null) return [];
+
+  debugPrint('Loading properties for user: $userId');
+
   final response = await Supabase.instance.client
       .from('properties')
       .select('*, property_images(url, is_primary)')
       .eq('owner_id', userId)
       .order('created_at', ascending: false);
+
+  debugPrint(
+      'Properties loaded: ${(response as List).length}');
+
   return (response as List)
       .map((e) => Map<String, dynamic>.from(e as Map))
       .toList();
@@ -59,11 +83,15 @@ final landlordPropertiesProvider =
 
 final landlordStatsProvider =
     FutureProvider<Map<String, dynamic>>((ref) async {
-  final userId = Supabase.instance.client.auth.currentUser?.id;
+  final userId =
+      Supabase.instance.client.auth.currentUser?.id;
   if (userId == null) return {};
   try {
-    final response = await Supabase.instance.client
-        .rpc('get_landlord_stats', params: {'p_landlord_id': userId});
+    final response =
+        await Supabase.instance.client.rpc(
+      'get_landlord_stats',
+      params: {'p_landlord_id': userId},
+    );
     if (response == null) return {};
     return Map<String, dynamic>.from(response as Map);
   } catch (e) {
@@ -78,10 +106,12 @@ class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() =>
+      _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen> {
+class _HomeScreenState
+    extends ConsumerState<HomeScreen> {
   final _searchController = TextEditingController();
 
   @override
@@ -93,7 +123,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final profileAsync = ref.watch(userProfileProvider);
-    final activeContext = ref.watch(activeContextProvider);
+    final activeContext =
+        ref.watch(activeContextProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -102,16 +133,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         error: (e, __) {
           debugPrint('Profile error: $e');
           return const Center(
-            child: Text(
-              'Erreur de chargement',
-              style: TextStyle(fontFamily: 'Poppins'),
-            ),
+            child: Text('Erreur de chargement',
+                style:
+                    TextStyle(fontFamily: 'Poppins')),
           );
         },
         data: (profile) {
-          final isLandlord = activeContext == 'landlord';
+          final isLandlord =
+              activeContext == 'landlord';
           final firstName =
-              (profile?['full_name'] as String? ?? 'Utilisateur')
+              (profile?['full_name'] as String? ??
+                      'Utilisateur')
                   .split(' ')
                   .first;
 
@@ -140,8 +172,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  // ─── Header ──────────────────────────────────────────────────────────────────
-
   Widget _buildHeader({
     required BuildContext context,
     required String firstName,
@@ -159,12 +189,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          padding:
+              const EdgeInsets.fromLTRB(20, 16, 20, 24),
           child: Column(
             children: [
               Row(
                 children: [
-                  // Avatar
                   Container(
                     width: 40,
                     height: 40,
@@ -172,14 +202,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       shape: BoxShape.circle,
                       color: Colors.white.withOpacity(0.2),
                       border: Border.all(
-                        color: Colors.white.withOpacity(0.5),
+                        color:
+                            Colors.white.withOpacity(0.5),
                         width: 2,
                       ),
                     ),
                     child: profile?['avatar_url'] != null
                         ? ClipOval(
                             child: Image.network(
-                              profile!['avatar_url'] as String,
+                              profile!['avatar_url']
+                                  as String,
                               fit: BoxFit.cover,
                             ),
                           )
@@ -190,11 +222,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                   ),
                   const SizedBox(width: 12),
-
-                  // Texte bonjour
                   Expanded(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
                       children: [
                         Text(
                           activeContext == 'landlord'
@@ -203,7 +234,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           style: TextStyle(
                             fontFamily: 'Poppins',
                             fontSize: 13,
-                            color: Colors.white.withOpacity(0.85),
+                            color: Colors.white
+                                .withOpacity(0.85),
                           ),
                         ),
                         if (activeContext == 'tenant')
@@ -218,18 +250,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                         if (activeContext == 'landlord')
                           Text(
-                            'Voici l\'état de votre patrimoine immobilier aujourd\'hui.',
+                            'Voici l\'état de votre patrimoine.',
                             style: TextStyle(
                               fontFamily: 'Poppins',
                               fontSize: 12,
-                              color: Colors.white.withOpacity(0.8),
+                              color: Colors.white
+                                  .withOpacity(0.8),
                             ),
                           ),
                       ],
                     ),
                   ),
-
-                  // Notification
                   Stack(
                     children: [
                       IconButton(
@@ -256,14 +287,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 16),
-
-              // Switch contexte
               _ContextSwitch(
                 activeContext: activeContext,
                 onChanged: (ctx) {
-                  ref.read(activeContextProvider.notifier).state = ctx;
+                  ref
+                      .read(
+                          activeContextProvider.notifier)
+                      .setContext(ctx);
                 },
               ),
             ],
@@ -273,33 +304,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  // ─── Contenu Locataire ────────────────────────────────────────────────────────
-
   List<Widget> _buildTenantContent() {
     return [
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+          padding:
+              const EdgeInsets.fromLTRB(20, 20, 20, 0),
           child: _ActiveLeaseCard(),
         ),
       ),
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-          child: _SearchBar(controller: _searchController),
+          padding:
+              const EdgeInsets.fromLTRB(20, 20, 20, 0),
+          child: _SearchBar(
+              controller: _searchController),
         ),
       ),
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(0, 20, 0, 0),
+          padding:
+              const EdgeInsets.fromLTRB(0, 20, 0, 0),
           child: _CategoriesRow(),
         ),
       ),
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+          padding:
+              const EdgeInsets.fromLTRB(20, 24, 20, 0),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            mainAxisAlignment:
+                MainAxisAlignment.spaceBetween,
             children: [
               const Text(
                 'Biens recommandés',
@@ -311,7 +346,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ),
               TextButton(
-                onPressed: () => context.go('/search'),
+                onPressed: () =>
+                    context.go('/search'),
                 child: const Text(
                   'Voir tout →',
                   style: TextStyle(
@@ -326,28 +362,88 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ),
       ),
+      // Biens filtrés par catégorie
       SliverToBoxAdapter(
-        child: _RecommendedPropertiesRow(),
+        child: Consumer(
+          builder: (context, ref, _) {
+            final category =
+                ref.watch(selectedCategoryProvider);
+            final propertiesAsync = ref.watch(
+                recommendedPropertiesProvider(category));
+
+            return propertiesAsync.when(
+              loading: () => SizedBox(
+                height: 260,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 20),
+                  itemCount: 3,
+                  separatorBuilder: (_, __) =>
+                      const SizedBox(width: 16),
+                  itemBuilder: (_, __) =>
+                      _PropertyCardSkeleton(),
+                ),
+              ),
+              error: (e, __) {
+                debugPrint('Properties error: $e');
+                return const SizedBox.shrink();
+              },
+              data: (properties) {
+                if (properties.isEmpty) {
+                  return Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Center(
+                      child: Text(
+                        'Aucun bien disponible',
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  );
+                }
+                return SizedBox(
+                  height: 280,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20),
+                    itemCount: properties.length,
+                    separatorBuilder: (_, __) =>
+                        const SizedBox(width: 16),
+                    itemBuilder: (context, index) =>
+                        _PropertyCard(
+                            property: properties[index]),
+                  ),
+                );
+              },
+            );
+          },
+        ),
       ),
-      const SliverToBoxAdapter(child: SizedBox(height: 100)),
+      const SliverToBoxAdapter(
+          child: SizedBox(height: 100)),
     ];
   }
-
-  // ─── Contenu Bailleur ─────────────────────────────────────────────────────────
 
   List<Widget> _buildLandlordContent() {
     return [
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+          padding:
+              const EdgeInsets.fromLTRB(20, 20, 20, 0),
           child: _LandlordKPIs(),
         ),
       ),
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
+          padding:
+              const EdgeInsets.fromLTRB(20, 24, 20, 8),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            mainAxisAlignment:
+                MainAxisAlignment.spaceBetween,
             children: [
               const Text(
                 'Vos Propriétés',
@@ -379,7 +475,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
+          padding:
+              const EdgeInsets.fromLTRB(20, 24, 20, 12),
           child: const Text(
             'Activité Récente',
             style: TextStyle(
@@ -391,21 +488,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ),
       ),
-      SliverToBoxAdapter(
-        child: _RecentActivityList(),
-      ),
+      SliverToBoxAdapter(child: _RecentActivityList()),
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+          padding:
+              const EdgeInsets.fromLTRB(20, 24, 20, 0),
           child: _PremiumAdviceCard(),
         ),
       ),
-      const SliverToBoxAdapter(child: SizedBox(height: 120)),
+      const SliverToBoxAdapter(
+          child: SizedBox(height: 120)),
     ];
   }
 }
 
-// ─── Switch Contexte ──────────────────────────────────────────────────────────
+// ─── Context Switch ───────────────────────────────────────────────────────────
 
 class _ContextSwitch extends StatelessWidget {
   final String activeContext;
@@ -462,12 +559,15 @@ class _SwitchTab extends StatelessWidget {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           decoration: BoxDecoration(
-            color: isActive ? Colors.white : Colors.transparent,
+            color: isActive
+                ? Colors.white
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(16),
           ),
           child: Center(
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisAlignment:
+                  MainAxisAlignment.center,
               children: [
                 Text(
                   label,
@@ -482,11 +582,9 @@ class _SwitchTab extends StatelessWidget {
                 ),
                 if (isActive) ...[
                   const SizedBox(width: 4),
-                  const Icon(
-                    Icons.check,
-                    size: 14,
-                    color: AppColors.primary,
-                  ),
+                  const Icon(Icons.check,
+                      size: 14,
+                      color: AppColors.primary),
                 ],
               ],
             ),
@@ -497,7 +595,7 @@ class _SwitchTab extends StatelessWidget {
   }
 }
 
-// ─── Card Bail Actif ──────────────────────────────────────────────────────────
+// ─── Active Lease Card ────────────────────────────────────────────────────────
 
 class _ActiveLeaseCard extends ConsumerWidget {
   @override
@@ -512,12 +610,15 @@ class _ActiveLeaseCard extends ConsumerWidget {
 
         final property =
             lease['properties'] as Map<String, dynamic>?;
-        final rent = lease['monthly_rent'] as num? ?? 0;
-        final paymentDay = lease['payment_day'] as int? ?? 5;
+        final rent =
+            lease['monthly_rent'] as num? ?? 0;
+        final paymentDay =
+            lease['payment_day'] as int? ?? 5;
         final now = DateTime.now();
         final dueDate =
             DateTime(now.year, now.month, paymentDay);
-        final daysLeft = dueDate.difference(now).inDays;
+        final daysLeft =
+            dueDate.difference(now).inDays;
 
         return Container(
           decoration: BoxDecoration(
@@ -525,22 +626,27 @@ class _ActiveLeaseCard extends ConsumerWidget {
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [Color(0xFF1A3A2A), Color(0xFF0F6E56)],
+              colors: [
+                Color(0xFF1A3A2A),
+                Color(0xFF0F6E56)
+              ],
             ),
           ),
           child: Stack(
             children: [
               Positioned.fill(
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius:
+                      BorderRadius.circular(20),
                   child: Opacity(
-                    opacity: 0.15,
+                    opacity: 0.12,
                     child: Image.network(
                       'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800',
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        color: AppColors.primaryDark,
-                      ),
+                      errorBuilder: (_, __, ___) =>
+                          Container(
+                              color:
+                                  AppColors.primaryDark),
                     ),
                   ),
                 ),
@@ -548,19 +654,22 @@ class _ActiveLeaseCard extends ConsumerWidget {
               Padding(
                 padding: const EdgeInsets.all(20),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
                   children: [
-                    // Badge
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
+                      padding:
+                          const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4),
                       decoration: BoxDecoration(
-                        color: AppColors.success.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(20),
+                        color: AppColors.success
+                            .withOpacity(0.2),
+                        borderRadius:
+                            BorderRadius.circular(20),
                         border: Border.all(
-                          color: AppColors.success.withOpacity(0.5),
+                          color: AppColors.success
+                              .withOpacity(0.5),
                         ),
                       ),
                       child: Row(
@@ -569,7 +678,8 @@ class _ActiveLeaseCard extends ConsumerWidget {
                           Container(
                             width: 6,
                             height: 6,
-                            decoration: const BoxDecoration(
+                            decoration:
+                                const BoxDecoration(
                               color: AppColors.success,
                               shape: BoxShape.circle,
                             ),
@@ -588,9 +698,7 @@ class _ActiveLeaseCard extends ConsumerWidget {
                         ],
                       ),
                     ),
-
                     const SizedBox(height: 10),
-
                     Text(
                       property?['title'] as String? ??
                           'Mon logement',
@@ -601,14 +709,12 @@ class _ActiveLeaseCard extends ConsumerWidget {
                         color: Colors.white,
                       ),
                     ),
-
                     Row(
                       children: [
                         const Icon(
-                          Icons.location_on_outlined,
-                          color: Colors.white70,
-                          size: 14,
-                        ),
+                            Icons.location_on_outlined,
+                            color: Colors.white70,
+                            size: 14),
                         const SizedBox(width: 4),
                         Text(
                           '${property?['neighborhood'] ?? ''}, ${property?['city'] ?? ''}',
@@ -620,15 +726,14 @@ class _ActiveLeaseCard extends ConsumerWidget {
                         ),
                       ],
                     ),
-
                     const SizedBox(height: 16),
-
-                    // Loyer info
                     Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.3),
-                        borderRadius: BorderRadius.circular(14),
+                        color:
+                            Colors.black.withOpacity(0.3),
+                        borderRadius:
+                            BorderRadius.circular(14),
                       ),
                       child: Row(
                         children: [
@@ -652,7 +757,8 @@ class _ActiveLeaseCard extends ConsumerWidget {
                                   style: const TextStyle(
                                     fontFamily: 'Poppins',
                                     fontSize: 18,
-                                    fontWeight: FontWeight.w700,
+                                    fontWeight:
+                                        FontWeight.w700,
                                     color: Colors.white,
                                   ),
                                 ),
@@ -680,7 +786,8 @@ class _ActiveLeaseCard extends ConsumerWidget {
                                 style: TextStyle(
                                   fontFamily: 'Poppins',
                                   fontSize: 13,
-                                  fontWeight: FontWeight.w600,
+                                  fontWeight:
+                                      FontWeight.w600,
                                   color: daysLeft <= 3
                                       ? AppColors.accent
                                       : Colors.white,
@@ -691,20 +798,18 @@ class _ActiveLeaseCard extends ConsumerWidget {
                         ],
                       ),
                     ),
-
                     const SizedBox(height: 10),
-
                     SizedBox(
                       width: double.infinity,
                       height: 44,
                       child: ElevatedButton(
-                        onPressed: () => context.go(
-                          '/payment/${lease['id']}',
-                        ),
+                        onPressed: () => context
+                            .go('/payment/${lease['id']}'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.accent,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius:
+                                BorderRadius.circular(12),
                           ),
                           elevation: 0,
                         ),
@@ -749,16 +854,14 @@ class _NoLeaseCard extends StatelessWidget {
               color: AppColors.primaryLight,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(
-              Icons.home_outlined,
-              color: AppColors.primary,
-              size: 24,
-            ),
+            child: const Icon(Icons.home_outlined,
+                color: AppColors.primary, size: 24),
           ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
               children: [
                 const Text(
                   'Aucun bail actif',
@@ -798,7 +901,7 @@ class _NoLeaseCard extends StatelessWidget {
   }
 }
 
-// ─── Barre de recherche ───────────────────────────────────────────────────────
+// ─── Search Bar ───────────────────────────────────────────────────────────────
 
 class _SearchBar extends StatelessWidget {
   final TextEditingController controller;
@@ -813,7 +916,8 @@ class _SearchBar extends StatelessWidget {
             onTap: () => context.go('/search'),
             child: Container(
               height: 52,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 16),
               decoration: BoxDecoration(
                 color: AppColors.surface,
                 borderRadius: BorderRadius.circular(14),
@@ -826,11 +930,9 @@ class _SearchBar extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  const Icon(
-                    Icons.search,
-                    color: AppColors.textTertiary,
-                    size: 20,
-                  ),
+                  const Icon(Icons.search,
+                      color: AppColors.textTertiary,
+                      size: 20),
                   const SizedBox(width: 10),
                   Text(
                     'Recherche rapide...',
@@ -855,11 +957,8 @@ class _SearchBar extends StatelessWidget {
               color: AppColors.primaryLight,
               borderRadius: BorderRadius.circular(14),
             ),
-            child: const Icon(
-              Icons.tune_rounded,
-              color: AppColors.primary,
-              size: 22,
-            ),
+            child: const Icon(Icons.tune_rounded,
+                color: AppColors.primary, size: 22),
           ),
         ),
       ],
@@ -867,27 +966,25 @@ class _SearchBar extends StatelessWidget {
   }
 }
 
-// ─── Catégories ───────────────────────────────────────────────────────────────
+// ─── Categories Row ───────────────────────────────────────────────────────────
 
-class _CategoriesRow extends StatefulWidget {
-  @override
-  State<_CategoriesRow> createState() => _CategoriesRowState();
-}
-
-class _CategoriesRowState extends State<_CategoriesRow> {
-  String _selected = 'Appartement';
-
-  final List<String> _categories = [
-    'Appartement',
-    'Studio',
-    'Villa',
-    'Meublé',
-    'Bureau',
-    'Terrain',
+class _CategoriesRow extends ConsumerWidget {
+  final List<Map<String, String?>> _categories = const [
+    {'label': 'Tout', 'value': null},
+    {'label': 'Appartement', 'value': 'appartement'},
+    {'label': 'Studio', 'value': 'studio'},
+    {'label': 'Villa', 'value': 'villa'},
+    {'label': 'Chambre', 'value': 'chambre'},
+    {'label': 'Meublé', 'value': 'appartement'},
+    {'label': 'Bureau', 'value': 'bureau'},
+    {'label': 'Terrain', 'value': 'terrain'},
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selectedCategory =
+        ref.watch(selectedCategoryProvider);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -909,23 +1006,33 @@ class _CategoriesRowState extends State<_CategoriesRow> {
           height: 40,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.symmetric(
+                horizontal: 20),
             itemCount: _categories.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            separatorBuilder: (_, __) =>
+                const SizedBox(width: 8),
             itemBuilder: (context, index) {
               final cat = _categories[index];
-              final isSelected = cat == _selected;
+              final isSelected =
+                  selectedCategory == cat['value'];
               return GestureDetector(
-                onTap: () => setState(() => _selected = cat),
+                onTap: () {
+                  ref
+                      .read(selectedCategoryProvider
+                          .notifier)
+                      .state = cat['value'];
+                },
                 child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16),
+                  duration:
+                      const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16),
                   decoration: BoxDecoration(
                     color: isSelected
                         ? AppColors.primary
                         : AppColors.surface,
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius:
+                        BorderRadius.circular(20),
                     border: Border.all(
                       color: isSelected
                           ? AppColors.primary
@@ -937,14 +1044,15 @@ class _CategoriesRowState extends State<_CategoriesRow> {
                               color: AppColors.primary
                                   .withOpacity(0.3),
                               blurRadius: 8,
-                              offset: const Offset(0, 2),
+                              offset:
+                                  const Offset(0, 2),
                             ),
                           ]
                         : [],
                   ),
                   child: Center(
                     child: Text(
-                      cat,
+                      cat['label']!,
                       style: TextStyle(
                         fontFamily: 'Poppins',
                         fontSize: 13,
@@ -965,322 +1073,7 @@ class _CategoriesRowState extends State<_CategoriesRow> {
   }
 }
 
-// ─── Biens recommandés ────────────────────────────────────────────────────────
-
-class _RecommendedPropertiesRow extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final propertiesAsync = ref.watch(recommendedPropertiesProvider);
-
-    return propertiesAsync.when(
-      loading: () => SizedBox(
-        height: 260,
-        child: ListView.separated(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          itemCount: 3,
-          separatorBuilder: (_, __) => const SizedBox(width: 16),
-          itemBuilder: (_, __) => _PropertyCardSkeleton(),
-        ),
-      ),
-      error: (e, __) {
-        debugPrint('Properties error: $e');
-        return const SizedBox.shrink();
-      },
-      data: (properties) {
-        if (properties.isEmpty) {
-          return Padding(
-            padding: const EdgeInsets.all(20),
-            child: Center(
-              child: Text(
-                'Aucun bien disponible pour le moment',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ),
-          );
-        }
-
-        return SizedBox(
-          height: 280,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            itemCount: properties.length,
-            separatorBuilder: (_, __) =>
-                const SizedBox(width: 16),
-            itemBuilder: (context, index) {
-              return _PropertyCard(property: properties[index]);
-            },
-          ),
-        );
-      },
-    );
-  }
-}
-
-// ─── Property Card ────────────────────────────────────────────────────────────
-
-class _PropertyCard extends StatefulWidget {
-  final Map<String, dynamic> property;
-  const _PropertyCard({required this.property});
-
-  @override
-  State<_PropertyCard> createState() => _PropertyCardState();
-}
-
-class _PropertyCardState extends State<_PropertyCard> {
-  bool _isFavorite = false;
-
-  String get _imageUrl {
-    final images = widget.property['property_images'] as List?;
-    if (images != null && images.isNotEmpty) {
-      final primary = images.firstWhere(
-        (img) =>
-            (img as Map)['is_primary'] == true,
-        orElse: () => images.first,
-      );
-      return (primary as Map)['url'] as String? ?? '';
-    }
-    return '';
-  }
-
-  String _formatPrice(num price) {
-    return price
-        .toInt()
-        .toString()
-        .replaceAllMapped(
-          RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
-          (m) => '${m[1]} ',
-        );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final p = widget.property;
-    final rent = p['monthly_rent'] as num? ?? 0;
-    final surface = p['surface_m2'] as num? ?? 0;
-    final rooms = p['nb_rooms'] as int? ?? 0;
-
-    return GestureDetector(
-      onTap: () => context.go('/property/${p['id']}'),
-      child: Container(
-        width: 200,
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.06),
-              blurRadius: 15,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(16),
-                  ),
-                  child: _imageUrl.isNotEmpty
-                      ? Image.network(
-                          _imageUrl,
-                          height: 140,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
-                              _PropertyImagePlaceholder(),
-                        )
-                      : _PropertyImagePlaceholder(),
-                ),
-                Positioned(
-                  top: 10,
-                  left: 10,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(
-                          Icons.star_rounded,
-                          color: Colors.white,
-                          size: 10,
-                        ),
-                        SizedBox(width: 3),
-                        Text(
-                          '95% MATCH',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 9,
-                            fontWeight: FontWeight.w700,
-                            fontFamily: 'Poppins',
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: GestureDetector(
-                    onTap: () => setState(
-                      () => _isFavorite = !_isFavorite,
-                    ),
-                    child: Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 4,
-                          ),
-                        ],
-                      ),
-                      child: Icon(
-                        _isFavorite
-                            ? Icons.favorite_rounded
-                            : Icons.favorite_border_rounded,
-                        color: _isFavorite
-                            ? AppColors.error
-                            : AppColors.textTertiary,
-                        size: 16,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    p['title'] as String? ?? '',
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.location_on_outlined,
-                        size: 12,
-                        color: AppColors.textTertiary,
-                      ),
-                      const SizedBox(width: 2),
-                      Expanded(
-                        child: Text(
-                          '${p['neighborhood'] ?? ''}, ${p['city'] ?? ''}',
-                          style: const TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 11,
-                            color: AppColors.textTertiary,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '${_formatPrice(rent)} FCFA/mois',
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      _InfoChip(
-                        icon: Icons.straighten,
-                        label: '${surface.toInt()}m²',
-                      ),
-                      const SizedBox(width: 6),
-                      _InfoChip(
-                        icon: Icons.bed_outlined,
-                        label: '$rooms pièces',
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PropertyImagePlaceholder extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 140,
-      width: double.infinity,
-      color: AppColors.surfaceVariant,
-      child: const Icon(
-        Icons.home_rounded,
-        color: AppColors.border,
-        size: 40,
-      ),
-    );
-  }
-}
-
-class _InfoChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _InfoChip({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 11, color: AppColors.textTertiary),
-        const SizedBox(width: 3),
-        Text(
-          label,
-          style: const TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 11,
-            color: AppColors.textTertiary,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ─── KPIs Bailleur ────────────────────────────────────────────────────────────
+// ─── Landlord KPIs ────────────────────────────────────────────────────────────
 
 class _LandlordKPIs extends ConsumerWidget {
   @override
@@ -1292,20 +1085,24 @@ class _LandlordKPIs extends ConsumerWidget {
       error: (e, __) {
         debugPrint('KPI error: $e');
         return _KPIGrid(
-          revenus: 0,
-          biens: 0,
-          occupation: 0.0,
-          messages: 0,
-        );
+            revenus: 0,
+            biens: 0,
+            occupation: 0.0,
+            messages: 0);
       },
       data: (stats) => _KPIGrid(
-        revenus: (stats['monthly_revenue'] as num?)?.toInt() ?? 0,
+        revenus:
+            (stats['monthly_revenue'] as num?)?.toInt() ??
+                0,
         biens:
-            (stats['total_properties'] as num?)?.toInt() ?? 0,
+            (stats['total_properties'] as num?)?.toInt() ??
+                0,
         occupation:
-            (stats['occupancy_rate'] as num?)?.toDouble() ?? 0.0,
+            (stats['occupancy_rate'] as num?)?.toDouble() ??
+                0.0,
         messages:
-            (stats['unread_messages'] as num?)?.toInt() ?? 0,
+            (stats['unread_messages'] as num?)?.toInt() ??
+                0,
       ),
     );
   }
@@ -1324,7 +1121,7 @@ class _KPIGrid extends StatelessWidget {
     required this.messages,
   });
 
-  String _formatRevenue(int amount) {
+  String _fmt(int amount) {
     if (amount >= 1000000) {
       return '${(amount / 1000000).toStringAsFixed(1)}M';
     }
@@ -1340,7 +1137,7 @@ class _KPIGrid extends StatelessWidget {
       {
         'icon': Icons.account_balance_wallet_outlined,
         'label': 'REVENUS',
-        'value': '${_formatRevenue(revenus)} XAF',
+        'value': '${_fmt(revenus)} XAF',
         'color': AppColors.success,
       },
       {
@@ -1366,7 +1163,8 @@ class _KPIGrid extends StatelessWidget {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+      gridDelegate:
+          const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
@@ -1388,16 +1186,17 @@ class _KPIGrid extends StatelessWidget {
             ],
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            mainAxisAlignment:
+                MainAxisAlignment.spaceBetween,
             children: [
-              Icon(
-                kpi['icon'] as IconData,
-                color: kpi['color'] as Color,
-                size: 22,
-              ),
+              Icon(kpi['icon'] as IconData,
+                  color: kpi['color'] as Color,
+                  size: 22),
               Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
                 children: [
                   Text(
                     kpi['value'] as String,
@@ -1427,41 +1226,43 @@ class _KPIGrid extends StatelessWidget {
   }
 }
 
-// ─── Liste biens bailleur ─────────────────────────────────────────────────────
+// ─── Landlord Properties List ─────────────────────────────────────────────────
 
 class _LandlordPropertiesList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final propertiesAsync = ref.watch(landlordPropertiesProvider);
+    final propertiesAsync =
+        ref.watch(landlordPropertiesProvider);
 
     return propertiesAsync.when(
       loading: () => const Padding(
         padding: EdgeInsets.all(20),
-        child: Center(child: CircularProgressIndicator()),
+        child: Center(
+            child: CircularProgressIndicator(
+                color: AppColors.primary)),
       ),
       error: (e, __) {
-        debugPrint('Landlord properties error: $e');
+        debugPrint('Landlord props error: $e');
         return const SizedBox.shrink();
       },
       data: (properties) {
         if (properties.isEmpty) {
           return Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.symmetric(
+                horizontal: 20),
             child: Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 color: AppColors.surface,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
+                border:
+                    Border.all(color: AppColors.border),
               ),
               child: Column(
                 children: [
-                  const Icon(
-                    Icons.add_home_outlined,
-                    size: 48,
-                    color: AppColors.textTertiary,
-                  ),
+                  const Icon(Icons.add_home_outlined,
+                      size: 48,
+                      color: AppColors.textTertiary),
                   const SizedBox(height: 12),
                   const Text(
                     'Aucun bien publié',
@@ -1474,12 +1275,23 @@ class _LandlordPropertiesList extends ConsumerWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Publiez votre premier bien pour commencer à recevoir des locataires',
-                    textAlign: TextAlign.center,
+                    'Publiez votre premier bien',
                     style: TextStyle(
                       fontFamily: 'Poppins',
                       fontSize: 13,
                       color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () =>
+                        context.go('/publish-property'),
+                    child: const Text(
+                      '+ Publier un bien',
+                      style: TextStyle(
+                          fontFamily: 'Poppins',
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600),
                     ),
                   ),
                 ],
@@ -1491,15 +1303,14 @@ class _LandlordPropertiesList extends ConsumerWidget {
         return ListView.separated(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.symmetric(
+              horizontal: 20),
           itemCount: properties.length,
           separatorBuilder: (_, __) =>
               const SizedBox(height: 16),
-          itemBuilder: (context, index) {
-            return _LandlordPropertyCard(
-              property: properties[index],
-            );
-          },
+          itemBuilder: (context, index) =>
+              _LandlordPropertyCard(
+                  property: properties[index]),
         );
       },
     );
@@ -1537,7 +1348,8 @@ class _LandlordPropertyCard extends StatelessWidget {
   }
 
   String get _imageUrl {
-    final images = property['property_images'] as List?;
+    final images =
+        property['property_images'] as List?;
     if (images != null && images.isNotEmpty) {
       final primary = images.firstWhere(
         (img) => (img as Map)['is_primary'] == true,
@@ -1553,7 +1365,8 @@ class _LandlordPropertyCard extends StatelessWidget {
     final status =
         property['status'] as String? ?? 'disponible';
     final rooms = property['nb_rooms'] as int? ?? 0;
-    final surface = property['surface_m2'] as num? ?? 0;
+    final surface =
+        property['surface_m2'] as num? ?? 0;
 
     return Container(
       decoration: BoxDecoration(
@@ -1571,9 +1384,9 @@ class _LandlordPropertyCard extends StatelessWidget {
           Stack(
             children: [
               ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(16),
-                ),
+                borderRadius:
+                    const BorderRadius.vertical(
+                        top: Radius.circular(16)),
                 child: _imageUrl.isNotEmpty
                     ? Image.network(
                         _imageUrl,
@@ -1581,21 +1394,20 @@ class _LandlordPropertyCard extends StatelessWidget {
                         width: double.infinity,
                         fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) =>
-                            _PropertyImagePlaceholder(),
+                            _PropPlaceholder(),
                       )
-                    : _PropertyImagePlaceholder(),
+                    : _PropPlaceholder(),
               ),
               Positioned(
                 top: 12,
                 left: 12,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
+                      horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
                     color: _statusColor(status),
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius:
+                        BorderRadius.circular(20),
                   ),
                   child: Text(
                     _statusLabel(status),
@@ -1614,7 +1426,8 @@ class _LandlordPropertyCard extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
               children: [
                 Text(
                   property['title'] as String? ?? '',
@@ -1629,10 +1442,9 @@ class _LandlordPropertyCard extends StatelessWidget {
                 Row(
                   children: [
                     const Icon(
-                      Icons.location_on_outlined,
-                      size: 14,
-                      color: AppColors.textTertiary,
-                    ),
+                        Icons.location_on_outlined,
+                        size: 14,
+                        color: AppColors.textTertiary),
                     const SizedBox(width: 4),
                     Text(
                       '${property['neighborhood'] ?? ''}, ${property['city'] ?? ''}',
@@ -1648,14 +1460,12 @@ class _LandlordPropertyCard extends StatelessWidget {
                 Row(
                   children: [
                     _InfoChip(
-                      icon: Icons.bed_outlined,
-                      label: '$rooms Ch.',
-                    ),
+                        icon: Icons.bed_outlined,
+                        label: '$rooms Ch.'),
                     const SizedBox(width: 12),
                     _InfoChip(
-                      icon: Icons.straighten,
-                      label: '${surface.toInt()}m²',
-                    ),
+                        icon: Icons.straighten,
+                        label: '${surface.toInt()}m²'),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -1665,26 +1475,25 @@ class _LandlordPropertyCard extends StatelessWidget {
                       Expanded(
                         child: OutlinedButton(
                           onPressed: () {},
-                          style: OutlinedButton.styleFrom(
+                          style:
+                              OutlinedButton.styleFrom(
                             side: const BorderSide(
-                              color: AppColors.border,
-                            ),
+                                color: AppColors.border),
                             shape: RoundedRectangleBorder(
-                              borderRadius:
-                                  BorderRadius.circular(10),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              vertical: 10,
-                            ),
+                                borderRadius:
+                                    BorderRadius.circular(
+                                        10)),
+                            padding:
+                                const EdgeInsets.symmetric(
+                                    vertical: 10),
                           ),
-                          child: const Text(
-                            'Modifier',
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 13,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
+                          child: const Text('Modifier',
+                              style: TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 13,
+                                color:
+                                    AppColors.textSecondary,
+                              )),
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -1692,24 +1501,24 @@ class _LandlordPropertyCard extends StatelessWidget {
                         child: ElevatedButton(
                           onPressed: () {},
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
+                            backgroundColor:
+                                AppColors.primary,
                             shape: RoundedRectangleBorder(
-                              borderRadius:
-                                  BorderRadius.circular(10),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              vertical: 10,
-                            ),
+                                borderRadius:
+                                    BorderRadius.circular(
+                                        10)),
+                            padding:
+                                const EdgeInsets.symmetric(
+                                    vertical: 10),
                             elevation: 0,
                           ),
                           child: const Text(
-                            'Voir demandes',
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 13,
-                              color: Colors.white,
-                            ),
-                          ),
+                              'Voir demandes',
+                              style: TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 13,
+                                color: Colors.white,
+                              )),
                         ),
                       ),
                     ],
@@ -1720,26 +1529,25 @@ class _LandlordPropertyCard extends StatelessWidget {
                       Expanded(
                         child: OutlinedButton(
                           onPressed: () {},
-                          style: OutlinedButton.styleFrom(
+                          style:
+                              OutlinedButton.styleFrom(
                             side: const BorderSide(
-                              color: AppColors.border,
-                            ),
+                                color: AppColors.border),
                             shape: RoundedRectangleBorder(
-                              borderRadius:
-                                  BorderRadius.circular(10),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              vertical: 10,
-                            ),
+                                borderRadius:
+                                    BorderRadius.circular(
+                                        10)),
+                            padding:
+                                const EdgeInsets.symmetric(
+                                    vertical: 10),
                           ),
-                          child: const Text(
-                            'Détails Bail',
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 13,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
+                          child: const Text('Détails Bail',
+                              style: TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 13,
+                                color:
+                                    AppColors.textSecondary,
+                              )),
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -1748,24 +1556,23 @@ class _LandlordPropertyCard extends StatelessWidget {
                           onPressed: () =>
                               context.go('/documents'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
+                            backgroundColor:
+                                AppColors.primary,
                             shape: RoundedRectangleBorder(
-                              borderRadius:
-                                  BorderRadius.circular(10),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              vertical: 10,
-                            ),
+                                borderRadius:
+                                    BorderRadius.circular(
+                                        10)),
+                            padding:
+                                const EdgeInsets.symmetric(
+                                    vertical: 10),
                             elevation: 0,
                           ),
-                          child: const Text(
-                            'Quittance',
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 13,
-                              color: Colors.white,
-                            ),
-                          ),
+                          child: const Text('Quittance',
+                              style: TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 13,
+                                color: Colors.white,
+                              )),
                         ),
                       ),
                     ],
@@ -1778,19 +1585,15 @@ class _LandlordPropertyCard extends StatelessWidget {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.warning,
                         shape: RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(10),
-                        ),
+                            borderRadius:
+                                BorderRadius.circular(10)),
                         elevation: 0,
                       ),
-                      child: const Text(
-                        'Suivre Travaux',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 13,
-                          color: Colors.white,
-                        ),
-                      ),
+                      child: const Text('Suivre Travaux',
+                          style: TextStyle(
+                              fontFamily: 'Poppins',
+                              fontSize: 13,
+                              color: Colors.white)),
                     ),
                   ),
               ],
@@ -1802,7 +1605,248 @@ class _LandlordPropertyCard extends StatelessWidget {
   }
 }
 
-// ─── Activité récente ─────────────────────────────────────────────────────────
+class _PropPlaceholder extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 160,
+      width: double.infinity,
+      color: AppColors.surfaceVariant,
+      child: const Icon(Icons.home_rounded,
+          color: AppColors.border, size: 40),
+    );
+  }
+}
+
+// ─── Property Card (recommandés) ──────────────────────────────────────────────
+
+class _PropertyCard extends StatefulWidget {
+  final Map<String, dynamic> property;
+  const _PropertyCard({required this.property});
+
+  @override
+  State<_PropertyCard> createState() =>
+      _PropertyCardState();
+}
+
+class _PropertyCardState extends State<_PropertyCard> {
+  bool _isFavorite = false;
+
+  String get _imageUrl {
+    final images =
+        widget.property['property_images'] as List?;
+    if (images != null && images.isNotEmpty) {
+      final primary = images.firstWhere(
+        (img) => (img as Map)['is_primary'] == true,
+        orElse: () => images.first,
+      );
+      return (primary as Map)['url'] as String? ?? '';
+    }
+    return '';
+  }
+
+  String _fmt(num price) {
+    return price
+        .toInt()
+        .toString()
+        .replaceAllMapped(
+          RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+          (m) => '${m[1]} ',
+        );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = widget.property;
+    final rent = p['monthly_rent'] as num? ?? 0;
+    final surface = p['surface_m2'] as num? ?? 0;
+    final rooms = p['nb_rooms'] as int? ?? 0;
+
+    return GestureDetector(
+      onTap: () => context.go('/property/${p['id']}'),
+      child: Container(
+        width: 200,
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 15,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius:
+                      const BorderRadius.vertical(
+                          top: Radius.circular(16)),
+                  child: _imageUrl.isNotEmpty
+                      ? Image.network(
+                          _imageUrl,
+                          height: 140,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) =>
+                              Container(
+                            height: 140,
+                            color: AppColors.surfaceVariant,
+                            child: const Icon(
+                                Icons.home_rounded,
+                                color: AppColors.border,
+                                size: 40),
+                          ),
+                        )
+                      : Container(
+                          height: 140,
+                          color: AppColors.surfaceVariant,
+                          child: const Icon(
+                              Icons.home_rounded,
+                              color: AppColors.border,
+                              size: 40),
+                        ),
+                ),
+                Positioned(
+                  top: 10,
+                  left: 10,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius:
+                          BorderRadius.circular(20),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.star_rounded,
+                            color: Colors.white,
+                            size: 10),
+                        SizedBox(width: 3),
+                        Text(
+                          '95% MATCH',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            fontFamily: 'Poppins',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: GestureDetector(
+                    onTap: () => setState(
+                        () => _isFavorite = !_isFavorite),
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black
+                                .withOpacity(0.1),
+                            blurRadius: 4,
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        _isFavorite
+                            ? Icons.favorite_rounded
+                            : Icons.favorite_border_rounded,
+                        color: _isFavorite
+                            ? AppColors.error
+                            : AppColors.textTertiary,
+                        size: 16,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    p['title'] as String? ?? '',
+                    style: const TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      const Icon(
+                          Icons.location_on_outlined,
+                          size: 12,
+                          color: AppColors.textTertiary),
+                      const SizedBox(width: 2),
+                      Expanded(
+                        child: Text(
+                          '${p['neighborhood'] ?? ''}, ${p['city'] ?? ''}',
+                          style: const TextStyle(
+                            fontFamily: 'Poppins',
+                            fontSize: 11,
+                            color: AppColors.textTertiary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${_fmt(rent)} FCFA/mois',
+                    style: const TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      _InfoChip(
+                          icon: Icons.straighten,
+                          label: '${surface.toInt()}m²'),
+                      const SizedBox(width: 6),
+                      _InfoChip(
+                          icon: Icons.bed_outlined,
+                          label: '$rooms pièces'),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Recent Activity ──────────────────────────────────────────────────────────
 
 class _RecentActivityList extends StatelessWidget {
   @override
@@ -1824,8 +1868,8 @@ class _RecentActivityList extends StatelessWidget {
           return const Padding(
             padding: EdgeInsets.symmetric(horizontal: 20),
             child: Center(
-              child: CircularProgressIndicator(),
-            ),
+                child: CircularProgressIndicator(
+                    color: AppColors.primary)),
           );
         }
 
@@ -1833,8 +1877,8 @@ class _RecentActivityList extends StatelessWidget {
 
         if (notifications.isEmpty) {
           return Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.symmetric(
+                horizontal: 20),
             child: Text(
               'Aucune activité récente',
               style: TextStyle(
@@ -1848,18 +1892,16 @@ class _RecentActivityList extends StatelessWidget {
         return ListView.separated(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          padding:
-              const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.symmetric(
+              horizontal: 20),
           itemCount: notifications.length,
           separatorBuilder: (_, __) =>
               const Divider(height: 1),
-          itemBuilder: (context, index) {
-            return _ActivityItem(
-              notification: Map<String, dynamic>.from(
-                notifications[index] as Map,
-              ),
-            );
-          },
+          itemBuilder: (context, index) =>
+              _ActivityItem(
+            notification: Map<String, dynamic>.from(
+                notifications[index] as Map),
+          ),
         );
       },
     );
@@ -1900,8 +1942,10 @@ class _ActivityItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final type =
         notification['type'] as String? ?? 'system';
-    final title = notification['title'] as String? ?? '';
-    final body = notification['body'] as String? ?? '';
+    final title =
+        notification['title'] as String? ?? '';
+    final body =
+        notification['body'] as String? ?? '';
     final createdAt =
         notification['created_at'] as String?;
 
@@ -1929,54 +1973,46 @@ class _ActivityItem extends StatelessWidget {
               color: _getColor(type).withOpacity(0.1),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(
-              _getIcon(type),
-              color: _getColor(type),
-              size: 20,
-            ),
+            child: Icon(_getIcon(type),
+                color: _getColor(type), size: 20),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                Text(
-                  body,
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                Text(title,
+                    style: const TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textPrimary,
+                    )),
+                Text(body,
+                    style: const TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
               ],
             ),
           ),
-          Text(
-            timeAgo,
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 11,
-              color: AppColors.textTertiary,
-            ),
-          ),
+          Text(timeAgo,
+              style: const TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 11,
+                color: AppColors.textTertiary,
+              )),
         ],
       ),
     );
   }
 }
 
-// ─── Conseil Premium ──────────────────────────────────────────────────────────
+// ─── Premium Advice Card ──────────────────────────────────────────────────────
 
 class _PremiumAdviceCard extends StatelessWidget {
   @override
@@ -2003,7 +2039,7 @@ class _PremiumAdviceCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'La demande à Bonapriso a augmenté de 12%. C\'est peut-être le moment de réviser vos tarifs.',
+            'La demande a augmenté de 12%. C\'est peut-être le moment de réviser vos tarifs.',
             style: TextStyle(
               fontFamily: 'Poppins',
               fontSize: 13,
@@ -2015,12 +2051,13 @@ class _PremiumAdviceCard extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () => context.go('/analytics'),
+              onPressed: () =>
+                  context.go('/analytics'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
+                    borderRadius:
+                        BorderRadius.circular(10)),
                 elevation: 0,
               ),
               child: const Text(
@@ -2040,13 +2077,14 @@ class _PremiumAdviceCard extends StatelessWidget {
   }
 }
 
-// ─── FAB Publier ──────────────────────────────────────────────────────────────
+// ─── FAB ─────────────────────────────────────────────────────────────────────
 
 class _PublishFAB extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FloatingActionButton.extended(
-      onPressed: () => context.go('/publish-property'),
+      onPressed: () =>
+          context.go('/publish-property'),
       backgroundColor: AppColors.primary,
       elevation: 4,
       icon: const Icon(Icons.add, color: Colors.white),
@@ -2063,6 +2101,30 @@ class _PublishFAB extends StatelessWidget {
   }
 }
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+class _InfoChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  const _InfoChip({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 11, color: AppColors.textTertiary),
+        const SizedBox(width: 3),
+        Text(label,
+            style: const TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 11,
+              color: AppColors.textTertiary,
+            )),
+      ],
+    );
+  }
+}
+
 // ─── Skeletons ────────────────────────────────────────────────────────────────
 
 class _HomeShimmer extends StatelessWidget {
@@ -2071,19 +2133,23 @@ class _HomeShimmer extends StatelessWidget {
     return SingleChildScrollView(
       child: Column(
         children: [
-          Container(height: 160, color: AppColors.primary),
+          Container(
+              height: 160, color: AppColors.primary),
           const SizedBox(height: 20),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.symmetric(
+                horizontal: 20),
             child: Column(
               children: List.generate(
                 3,
                 (_) => Container(
                   height: 80,
-                  margin: const EdgeInsets.only(bottom: 12),
+                  margin:
+                      const EdgeInsets.only(bottom: 12),
                   decoration: BoxDecoration(
                     color: AppColors.surfaceVariant,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius:
+                        BorderRadius.circular(12),
                   ),
                 ),
               ),

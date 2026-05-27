@@ -1,41 +1,50 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_theme.dart';
 
 // ─── Providers ────────────────────────────────────────────────────────────────
 
-final messagesProvider =
-    StreamProvider.family<List<Map<String, dynamic>>, String>(
-        (ref, conversationId) {
-  return Supabase.instance.client
-      .from('messages')
-      .stream(primaryKey: ['id'])
-      .eq('conversation_id', conversationId)
-      .order('created_at', ascending: true)
-      .map((data) => data
-          .map((e) => Map<String, dynamic>.from(e))
-          .toList());
+final messagesProvider = FutureProvider.family<List<Map<String, dynamic>>, String>((ref, conversationId) async {
+  try {
+    final response = await Supabase.instance.client
+        .from('messages')
+        .select()
+        .eq('conversation_id', conversationId)
+        .order('created_at', ascending: true);
+    return (response as List)
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
+  } catch (e) {
+    debugPrint('Messages fetch error: $e');
+    return [];
+  }
 });
 
-final conversationDetailProvider =
-    FutureProvider.family<Map<String, dynamic>?, String>(
-        (ref, conversationId) async {
-  final response = await Supabase.instance.client
-      .from('conversations')
-      .select('''
-        *,
-        properties(title, monthly_rent, neighborhood, city,
-          property_images(url, is_primary)),
-        tenant:profiles!conversations_tenant_id_fkey(
-          id, full_name, avatar_url, is_online, last_seen),
-        landlord:profiles!conversations_landlord_id_fkey(
-          id, full_name, avatar_url, is_online, last_seen)
-      ''')
-      .eq('id', conversationId)
-      .maybeSingle();
-  return response as Map<String, dynamic>?;
+final conversationDetailProvider = FutureProvider.family<Map<String, dynamic>?, String>((ref, conversationId) async {
+  try {
+    final response = await Supabase.instance.client
+        .from('conversations')
+        .select('''
+          *,
+          properties(
+            id, title, monthly_rent, neighborhood, city,
+            property_images(url, is_primary)
+          ),
+          tenant:profiles!conversations_tenant_id_fkey(
+            id, full_name, avatar_url, is_online, last_seen),
+          landlord:profiles!conversations_landlord_id_fkey(
+            id, full_name, avatar_url, is_online, last_seen)
+        ''')
+        .eq('id', conversationId)
+        .maybeSingle();
+    return response as Map<String, dynamic>?;
+  } catch (e) {
+    debugPrint('Conversation detail error: $e');
+    return null;
+  }
 });
 
 // ─── ChatScreen ───────────────────────────────────────────────────────────────
@@ -55,6 +64,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   final String _currentUserId =
       Supabase.instance.client.auth.currentUser?.id ?? '';
+
+  @override
+  void initState() {
+    super.initState();
+    _markAsRead();
+  }
 
   @override
   void dispose() {
@@ -83,66 +98,62 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _messageController.clear();
 
     try {
-      await Supabase.instance.client.functions.invoke(
-        'send_message',
-        body: {
-          'conversation_id': widget.conversationId,
-          'content': content,
-          'message_type': 'texte',
-        },
-      );
+      await Supabase.instance.client
+          .from('messages')
+          .insert({
+        'conversation_id': widget.conversationId,
+        'sender_id': _currentUserId,
+        'content': content,
+        'message_type': 'texte',
+      });
+
+      await Supabase.instance.client
+          .from('conversations')
+          .update({
+        'last_message': content,
+        'last_message_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', widget.conversationId);
+
+      ref.invalidate(messagesProvider(widget.conversationId));
       _scrollToBottom();
     } catch (e) {
       debugPrint('Send message error: $e');
-      // Fallback — insertion directe
-      try {
-        await Supabase.instance.client
-            .from('messages')
-            .insert({
-          'conversation_id': widget.conversationId,
-          'sender_id': _currentUserId,
-          'content': content,
-          'message_type': 'texte',
-        });
-        _scrollToBottom();
-      } catch (e2) {
-        debugPrint('Direct insert error: $e2');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text(
-                'Erreur d\'envoi. Réessayez.',
-                style: TextStyle(fontFamily: 'Poppins'),
-              ),
-              backgroundColor: AppColors.error,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              margin: const EdgeInsets.all(16),
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Erreur d\'envoi. Réessayez.',
+              style: TextStyle(fontFamily: 'Poppins'),
             ),
-          );
-        }
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _isSending = false);
     }
   }
 
-  // Marquer messages comme lus
   Future<void> _markAsRead() async {
     try {
       await Supabase.instance.client
           .from('messages')
-          .update({'is_read': true, 'read_at': DateTime.now().toIso8601String()})
+          .update({
+        'is_read': true,
+        'read_at': DateTime.now().toIso8601String(),
+      })
           .eq('conversation_id', widget.conversationId)
           .neq('sender_id', _currentUserId)
           .eq('is_read', false);
 
-      // Reset unread count
       final conv = await Supabase.instance.client
           .from('conversations')
-          .select('tenant_id, landlord_id')
+          .select('tenant_id')
           .eq('id', widget.conversationId)
           .maybeSingle();
 
@@ -150,11 +161,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         final isTenant = conv['tenant_id'] == _currentUserId;
         await Supabase.instance.client
             .from('conversations')
-            .update(
-              isTenant
-                  ? {'tenant_unread': 0}
-                  : {'landlord_unread': 0},
-            )
+            .update(isTenant
+                ? {'tenant_unread': 0}
+                : {'landlord_unread': 0})
             .eq('id', widget.conversationId);
       }
     } catch (e) {
@@ -162,25 +171,191 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
+  Future<void> _showAttachmentOptions(
+      BuildContext context) async {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                color: AppColors.border,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const Text(
+              'Envoyer un fichier',
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment:
+                  MainAxisAlignment.spaceAround,
+              children: [
+                _AttachOption(
+                  icon: Icons.image_outlined,
+                  label: 'Galerie',
+                  color: AppColors.primary,
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickAndSendImage();
+                  },
+                ),
+                _AttachOption(
+                  icon: Icons.camera_alt_outlined,
+                  label: 'Caméra',
+                  color: AppColors.accent,
+                  onTap: () {
+                    Navigator.pop(context);
+                    _takePhoto();
+                  },
+                ),
+                _AttachOption(
+                  icon: Icons.insert_drive_file_outlined,
+                  label: 'Document',
+                  color: AppColors.info,
+                  onTap: () {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context)
+                        .showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Bientôt disponible',
+                          style: TextStyle(
+                              fontFamily: 'Poppins'),
+                        ),
+                        backgroundColor: AppColors.primary,
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickAndSendImage() async {
+    try {
+      final picker = ImagePicker();
+      final image = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80,
+      );
+      if (image != null) {
+        await _uploadAndSendImage(image);
+      }
+    } catch (e) {
+      debugPrint('Pick image error: $e');
+    }
+  }
+
+  Future<void> _takePhoto() async {
+    try {
+      final picker = ImagePicker();
+      final image = await picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 80,
+      );
+      if (image != null) {
+        await _uploadAndSendImage(image);
+      }
+    } catch (e) {
+      debugPrint('Take photo error: $e');
+    }
+  }
+
+  Future<void> _uploadAndSendImage(XFile image) async {
+    setState(() => _isSending = true);
+    try {
+      final bytes = await image.readAsBytes();
+      final fileName =
+          'msg_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final path =
+          '${widget.conversationId}/$fileName';
+
+      await Supabase.instance.client.storage
+          .from('chat_images')
+          .uploadBinary(path, bytes);
+
+      final url = Supabase.instance.client.storage
+          .from('chat_images')
+          .getPublicUrl(path);
+
+      await Supabase.instance.client
+          .from('messages')
+          .insert({
+        'conversation_id': widget.conversationId,
+        'sender_id': _currentUserId,
+        'content': '📷 Image',
+        'message_type': 'image',
+        'media_url': url,
+      });
+
+      await Supabase.instance.client
+          .from('conversations')
+          .update({
+        'last_message': '📷 Image',
+        'last_message_at':
+            DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', widget.conversationId);
+
+      ref.invalidate(
+          messagesProvider(widget.conversationId));
+      _scrollToBottom();
+    } catch (e) {
+      debugPrint('Upload image error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Erreur upload: $e',
+              style: const TextStyle(
+                  fontFamily: 'Poppins',
+                  color: Colors.white),
+            ),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSending = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final convAsync = ref.watch(
-      conversationDetailProvider(widget.conversationId),
-    );
-    final messagesAsync = ref.watch(
-      messagesProvider(widget.conversationId),
-    );
-
-    // Marquer comme lu à l'ouverture
-    _markAsRead();
+        conversationDetailProvider(
+            widget.conversationId));
+    final messagesAsync =
+        ref.watch(messagesProvider(widget.conversationId));
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: convAsync.when(
         loading: () => const Center(
           child: CircularProgressIndicator(
-            color: AppColors.primary,
-          ),
+              color: AppColors.primary),
         ),
         error: (e, __) => Scaffold(
           appBar: AppBar(
@@ -188,24 +363,53 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             leading: IconButton(
               icon: const Icon(Icons.arrow_back,
                   color: Colors.white),
-              onPressed: () => context.pop(),
+              onPressed: () {
+                if (context.canPop()) {
+                  context.pop();
+                } else {
+                  context.go('/conversations');
+                }
+              },
             ),
-            title: const Text('Chat'),
+            title: const Text('Chat',
+                style: TextStyle(
+                    fontFamily: 'Poppins',
+                    color: Colors.white)),
           ),
-          body: const Center(child: Text('Erreur')),
+          body: const Center(
+              child: Text('Erreur de chargement')),
         ),
         data: (conversation) {
           if (conversation == null) {
-            return const Center(
-              child: Text('Conversation introuvable'),
+            return Scaffold(
+              appBar: AppBar(
+                backgroundColor: AppColors.primary,
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back,
+                      color: Colors.white),
+                  onPressed: () {
+                    if (context.canPop()) {
+                      context.pop();
+                    } else {
+                      context.go('/conversations');
+                    }
+                  },
+                ),
+              ),
+              body: const Center(
+                  child:
+                      Text('Conversation introuvable')),
             );
           }
 
           final isTenant =
-              conversation['tenant_id'] == _currentUserId;
+              conversation['tenant_id'] ==
+                  _currentUserId;
           final otherUser = isTenant
-              ? conversation['landlord'] as Map<String, dynamic>?
-              : conversation['tenant'] as Map<String, dynamic>?;
+              ? conversation['landlord']
+                  as Map<String, dynamic>?
+              : conversation['tenant']
+                  as Map<String, dynamic>?;
 
           final otherName =
               otherUser?['full_name'] as String? ??
@@ -214,71 +418,66 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               otherUser?['avatar_url'] as String?;
           final isOnline =
               otherUser?['is_online'] as bool? ?? false;
-          final property =
-              conversation['properties'] as Map<String, dynamic>?;
+          final property = conversation['properties']
+              as Map<String, dynamic>?;
 
           return Column(
             children: [
-              // Header
               _buildHeader(
                 context: context,
                 name: otherName,
                 avatarUrl: otherAvatar,
                 isOnline: isOnline,
-                lastSeen: otherUser?['last_seen'] as String?,
+                lastSeen:
+                    otherUser?['last_seen'] as String?,
               ),
-
-              // Card bien en cours
               if (property != null)
-                _PropertyContextCard(property: property),
-
-              // Messages
+                _PropertyContextCard(
+                    property: property),
               Expanded(
                 child: messagesAsync.when(
                   loading: () => const Center(
                     child: CircularProgressIndicator(
-                      color: AppColors.primary,
-                    ),
+                        color: AppColors.primary),
                   ),
                   error: (e, __) {
                     debugPrint('Messages error: $e');
                     return const Center(
-                      child: Text('Erreur de chargement'),
-                    );
+                        child: Text(
+                            'Erreur de chargement'));
                   },
                   data: (messages) {
                     if (messages.isEmpty) {
                       return const _EmptyChat();
                     }
-
                     _scrollToBottom();
-
                     return ListView.builder(
                       controller: _scrollController,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
+                      padding:
+                          const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8),
                       itemCount: messages.length,
                       itemBuilder: (context, index) {
                         final message = messages[index];
-                        final isMe = message['sender_id'] ==
-                            _currentUserId;
-
-                        // Afficher date si changement de jour
+                        final isMe =
+                            message['sender_id'] ==
+                                _currentUserId;
                         final showDate = index == 0 ||
                             _isDifferentDay(
-                              messages[index - 1]['created_at']
+                              messages[index - 1]
+                                      ['created_at']
                                   as String,
-                              message['created_at'] as String,
+                              message['created_at']
+                                  as String,
                             );
-
                         return Column(
                           children: [
                             if (showDate)
                               _DateSeparator(
-                                date: message['created_at']
-                                    as String,
+                                date:
+                                    message['created_at']
+                                        as String,
                               ),
                             _MessageBubble(
                               message: message,
@@ -291,19 +490,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   },
                 ),
               ),
-
-              // Suggestions rapides
-              _QuickReplies(
-                onTap: (text) {
-                  _messageController.text = text;
-                },
-              ),
-
-              // Zone de saisie
+              _QuickReplies(onTap: (text) {
+                _messageController.text = text;
+              }),
               _MessageInput(
                 controller: _messageController,
                 isSending: _isSending,
                 onSend: _sendMessage,
+                onAttachment: () =>
+                    _showAttachmentOptions(context),
+                onCamera: () => _takePhoto(),
               ),
             ],
           );
@@ -347,19 +543,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(4, 8, 8, 12),
+          padding:
+              const EdgeInsets.fromLTRB(4, 8, 8, 12),
           child: Row(
             children: [
-              // Retour
               IconButton(
-                icon: const Icon(
-                  Icons.arrow_back,
-                  color: Colors.white,
-                ),
-                onPressed: () => context.pop(),
+                icon: const Icon(Icons.arrow_back,
+                    color: Colors.white),
+                onPressed: () {
+                  if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    context.go('/conversations');
+                  }
+                },
               ),
-
-              // Avatar
               Stack(
                 children: [
                   Container(
@@ -367,15 +565,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     height: 40,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Colors.white.withOpacity(0.2),
+                      color:
+                          Colors.white.withOpacity(0.2),
                     ),
                     child: avatarUrl != null
                         ? ClipOval(
                             child: Image.network(
                               avatarUrl,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) =>
-                                  const Icon(
+                              errorBuilder:
+                                  (_, __, ___) =>
+                                      const Icon(
                                 Icons.person_rounded,
                                 color: Colors.white,
                                 size: 22,
@@ -385,8 +585,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         : const Icon(
                             Icons.person_rounded,
                             color: Colors.white,
-                            size: 22,
-                          ),
+                            size: 22),
                   ),
                   if (isOnline)
                     Positioned(
@@ -399,18 +598,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           color: AppColors.success,
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: AppColors.primary,
-                            width: 2,
-                          ),
+                              color: AppColors.primary,
+                              width: 2),
                         ),
                       ),
                     ),
                 ],
               ),
-
               const SizedBox(width: 10),
-
-              // Nom + statut
               Expanded(
                 child: Column(
                   crossAxisAlignment:
@@ -432,26 +627,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         fontSize: 12,
                         color: isOnline
                             ? AppColors.successLight
-                            : Colors.white.withOpacity(0.7),
+                            : Colors.white
+                                .withOpacity(0.7),
                       ),
                     ),
                   ],
                 ),
               ),
-
-              // Actions
               IconButton(
-                icon: const Icon(
-                  Icons.call_outlined,
-                  color: Colors.white,
-                ),
+                icon: const Icon(Icons.call_outlined,
+                    color: Colors.white),
                 onPressed: () {},
               ),
               IconButton(
-                icon: const Icon(
-                  Icons.info_outline,
-                  color: Colors.white,
-                ),
+                icon: const Icon(Icons.info_outline,
+                    color: Colors.white),
                 onPressed: () {},
               ),
             ],
@@ -462,7 +652,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 }
 
-// ─── Card bien en discussion ──────────────────────────────────────────────────
+// ─── Property Context Card ────────────────────────────────────────────────────
 
 class _PropertyContextCard extends StatelessWidget {
   final Map<String, dynamic> property;
@@ -470,17 +660,20 @@ class _PropertyContextCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final images = property['property_images'] as List?;
+    final images =
+        property['property_images'] as List?;
     String imageUrl = '';
     if (images != null && images.isNotEmpty) {
       final primary = images.firstWhere(
         (img) => (img as Map)['is_primary'] == true,
         orElse: () => images.first,
       );
-      imageUrl = (primary as Map)['url'] as String? ?? '';
+      imageUrl =
+          (primary as Map)['url'] as String? ?? '';
     }
 
-    final rent = property['monthly_rent'] as num? ?? 0;
+    final rent =
+        property['monthly_rent'] as num? ?? 0;
     final rentFormatted = rent
         .toInt()
         .toString()
@@ -489,106 +682,103 @@ class _PropertyContextCard extends StatelessWidget {
           (m) => '${m[1]},',
         );
 
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.borderLight),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Étiquette
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 8,
-              vertical: 4,
-            ),
-            decoration: BoxDecoration(
-              color: AppColors.accentLight,
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: const Text(
-              'EN COURS DE DISCUSSION',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 8,
-                fontWeight: FontWeight.w700,
-                color: AppColors.accent,
-                letterSpacing: 0.5,
+    return GestureDetector(
+      onTap: () =>
+          context.go('/property/${property['id']}'),
+      child: Container(
+        margin:
+            const EdgeInsets.fromLTRB(16, 12, 16, 0),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+              color: AppColors.borderLight),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 8),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.accentLight,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Text(
+                'EN COURS DE DISCUSSION',
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 8,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.accent,
+                  letterSpacing: 0.5,
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 10),
-
-          // Image miniature
-          if (imageUrl.isNotEmpty)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.network(
-                imageUrl,
-                width: 52,
-                height: 52,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
+            const SizedBox(width: 10),
+            if (imageUrl.isNotEmpty)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.network(
+                  imageUrl,
                   width: 52,
                   height: 52,
-                  color: AppColors.surfaceVariant,
-                  child: const Icon(Icons.home_rounded,
-                      color: AppColors.border),
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) =>
+                      Container(
+                    width: 52,
+                    height: 52,
+                    color: AppColors.surfaceVariant,
+                    child: const Icon(
+                        Icons.home_rounded,
+                        color: AppColors.border),
+                  ),
                 ),
               ),
-            ),
-
-          const SizedBox(width: 10),
-
-          // Titre + prix
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  property['title'] as String? ?? '',
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    property['title'] as String? ?? '',
+                    style: const TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  '$rentFormatted FCFA / mois',
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
+                  Text(
+                    '$rentFormatted FCFA / mois',
+                    style: const TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-
-          const Icon(
-            Icons.chevron_right,
-            color: AppColors.textTertiary,
-            size: 20,
-          ),
-        ],
+            const Icon(Icons.chevron_right,
+                color: AppColors.textTertiary,
+                size: 20),
+          ],
+        ),
       ),
     );
   }
 }
 
-// ─── Bulle de message ─────────────────────────────────────────────────────────
+// ─── Message Bubble ───────────────────────────────────────────────────────────
 
 class _MessageBubble extends StatelessWidget {
   final Map<String, dynamic> message;
@@ -601,12 +791,16 @@ class _MessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final content = message['content'] as String? ?? '';
+    final content =
+        message['content'] as String? ?? '';
     final messageType =
         message['message_type'] as String? ?? 'texte';
-    final createdAt = message['created_at'] as String?;
-    final isRead = message['is_read'] as bool? ?? false;
-    final mediaUrl = message['media_url'] as String?;
+    final createdAt =
+        message['created_at'] as String?;
+    final isRead =
+        message['is_read'] as bool? ?? false;
+    final mediaUrl =
+        message['media_url'] as String?;
 
     String timeLabel = '';
     if (createdAt != null) {
@@ -624,19 +818,17 @@ class _MessageBubble extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isMe) const SizedBox(width: 8),
-
-          // Bulle
           Flexible(
             child: Container(
               constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.72,
+                maxWidth:
+                    MediaQuery.of(context).size.width *
+                        0.72,
               ),
               padding: messageType == 'image'
                   ? EdgeInsets.zero
                   : const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
-                    ),
+                      horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
                 color: isMe
                     ? AppColors.primary
@@ -644,28 +836,30 @@ class _MessageBubble extends StatelessWidget {
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(16),
                   topRight: const Radius.circular(16),
-                  bottomLeft: Radius.circular(isMe ? 16 : 4),
-                  bottomRight: Radius.circular(isMe ? 4 : 16),
+                  bottomLeft:
+                      Radius.circular(isMe ? 16 : 4),
+                  bottomRight:
+                      Radius.circular(isMe ? 4 : 16),
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
+                    color:
+                        Colors.black.withOpacity(0.06),
                     blurRadius: 6,
                   ),
                 ],
               ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+                crossAxisAlignment:
+                    CrossAxisAlignment.end,
                 children: [
-                  // Contenu selon type
                   if (messageType == 'image' &&
                       mediaUrl != null)
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.network(
-                        mediaUrl,
-                        fit: BoxFit.cover,
-                      ),
+                      borderRadius:
+                          BorderRadius.circular(12),
+                      child: Image.network(mediaUrl,
+                          fit: BoxFit.cover),
                     )
                   else
                     Text(
@@ -679,10 +873,7 @@ class _MessageBubble extends StatelessWidget {
                         height: 1.4,
                       ),
                     ),
-
                   const SizedBox(height: 4),
-
-                  // Heure + statut lu
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -692,7 +883,8 @@ class _MessageBubble extends StatelessWidget {
                           fontFamily: 'Poppins',
                           fontSize: 10,
                           color: isMe
-                              ? Colors.white.withOpacity(0.7)
+                              ? Colors.white
+                                  .withOpacity(0.7)
                               : AppColors.textTertiary,
                         ),
                       ),
@@ -705,7 +897,8 @@ class _MessageBubble extends StatelessWidget {
                           size: 12,
                           color: isRead
                               ? Colors.white
-                              : Colors.white.withOpacity(0.6),
+                              : Colors.white
+                                  .withOpacity(0.6),
                         ),
                       ],
                     ],
@@ -714,7 +907,6 @@ class _MessageBubble extends StatelessWidget {
               ),
             ),
           ),
-
           if (isMe) const SizedBox(width: 8),
         ],
       ),
@@ -722,7 +914,7 @@ class _MessageBubble extends StatelessWidget {
   }
 }
 
-// ─── Séparateur de date ───────────────────────────────────────────────────────
+// ─── Date Separator ───────────────────────────────────────────────────────────
 
 class _DateSeparator extends StatelessWidget {
   final String date;
@@ -750,15 +942,14 @@ class _DateSeparator extends StatelessWidget {
       child: Row(
         children: [
           const Expanded(
-            child: Divider(color: AppColors.borderLight),
-          ),
+              child:
+                  Divider(color: AppColors.borderLight)),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            padding: const EdgeInsets.symmetric(
+                horizontal: 12),
             child: Container(
               padding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 4,
-              ),
+                  horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
                 color: AppColors.surfaceVariant,
                 borderRadius: BorderRadius.circular(20),
@@ -776,15 +967,15 @@ class _DateSeparator extends StatelessWidget {
             ),
           ),
           const Expanded(
-            child: Divider(color: AppColors.borderLight),
-          ),
+              child:
+                  Divider(color: AppColors.borderLight)),
         ],
       ),
     );
   }
 }
 
-// ─── Suggestions rapides ──────────────────────────────────────────────────────
+// ─── Quick Replies ────────────────────────────────────────────────────────────
 
 class _QuickReplies extends StatelessWidget {
   final ValueChanged<String> onTap;
@@ -803,7 +994,8 @@ class _QuickReplies extends StatelessWidget {
       color: AppColors.background,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 16),
         itemCount: suggestions.length,
         separatorBuilder: (_, __) =>
             const SizedBox(width: 8),
@@ -812,9 +1004,7 @@ class _QuickReplies extends StatelessWidget {
             onTap: () => onTap(suggestions[index]),
             child: Container(
               padding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 8,
-              ),
+                  horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
                 color: index == 0
                     ? AppColors.primaryLight
@@ -822,7 +1012,8 @@ class _QuickReplies extends StatelessWidget {
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
                   color: index == 0
-                      ? AppColors.primary.withOpacity(0.3)
+                      ? AppColors.primary
+                          .withOpacity(0.3)
                       : AppColors.border,
                 ),
               ),
@@ -845,17 +1036,21 @@ class _QuickReplies extends StatelessWidget {
   }
 }
 
-// ─── Zone de saisie ───────────────────────────────────────────────────────────
+// ─── Message Input ────────────────────────────────────────────────────────────
 
 class _MessageInput extends StatelessWidget {
   final TextEditingController controller;
   final bool isSending;
   final VoidCallback onSend;
+  final VoidCallback onAttachment;
+  final VoidCallback onCamera;
 
   const _MessageInput({
     required this.controller,
     required this.isSending,
     required this.onSend,
+    required this.onAttachment,
+    required this.onCamera,
   });
 
   @override
@@ -881,7 +1076,7 @@ class _MessageInput extends StatelessWidget {
         children: [
           // Bouton pièce jointe
           GestureDetector(
-            onTap: () {},
+            onTap: onAttachment,
             child: Container(
               width: 40,
               height: 40,
@@ -889,22 +1084,18 @@ class _MessageInput extends StatelessWidget {
                 color: AppColors.surfaceVariant,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.add,
-                color: AppColors.textSecondary,
-                size: 22,
-              ),
+              child: const Icon(Icons.add,
+                  color: AppColors.textSecondary,
+                  size: 22),
             ),
           ),
-
           const SizedBox(width: 8),
 
           // Champ texte
           Expanded(
             child: Container(
               padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-              ),
+                  horizontal: 16),
               decoration: BoxDecoration(
                 color: AppColors.surfaceVariant,
                 borderRadius: BorderRadius.circular(24),
@@ -926,20 +1117,19 @@ class _MessageInput extends StatelessWidget {
                     color: AppColors.textHint,
                   ),
                   border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(
-                    vertical: 10,
-                  ),
+                  contentPadding:
+                      const EdgeInsets.symmetric(
+                          vertical: 10),
                   filled: false,
                 ),
               ),
             ),
           ),
-
           const SizedBox(width: 8),
 
-          // Bouton appareil photo
+          // Bouton caméra
           GestureDetector(
-            onTap: () {},
+            onTap: onCamera,
             child: Container(
               width: 40,
               height: 40,
@@ -948,25 +1138,25 @@ class _MessageInput extends StatelessWidget {
                 shape: BoxShape.circle,
               ),
               child: const Icon(
-                Icons.camera_alt_outlined,
-                color: AppColors.textSecondary,
-                size: 20,
-              ),
+                  Icons.camera_alt_outlined,
+                  color: AppColors.textSecondary,
+                  size: 20),
             ),
           ),
-
           const SizedBox(width: 8),
 
           // Bouton envoi
           GestureDetector(
             onTap: isSending ? null : onSend,
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
+              duration:
+                  const Duration(milliseconds: 200),
               width: 44,
               height: 44,
               decoration: BoxDecoration(
                 color: isSending
-                    ? AppColors.primary.withOpacity(0.6)
+                    ? AppColors.primary
+                        .withOpacity(0.6)
                     : AppColors.primary,
                 shape: BoxShape.circle,
               ),
@@ -974,15 +1164,11 @@ class _MessageInput extends StatelessWidget {
                   ? const Padding(
                       padding: EdgeInsets.all(12),
                       child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
+                          color: Colors.white,
+                          strokeWidth: 2),
                     )
-                  : const Icon(
-                      Icons.send_rounded,
-                      color: Colors.white,
-                      size: 20,
-                    ),
+                  : const Icon(Icons.send_rounded,
+                      color: Colors.white, size: 20),
             ),
           ),
         ],
@@ -1004,9 +1190,7 @@ class _EmptyChat extends StatelessWidget {
         children: [
           Container(
             padding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 10,
-            ),
+                horizontal: 20, vertical: 10),
             decoration: BoxDecoration(
               color: AppColors.surfaceVariant,
               borderRadius: BorderRadius.circular(20),
@@ -1028,6 +1212,51 @@ class _EmptyChat extends StatelessWidget {
             style: TextStyle(
               fontFamily: 'Poppins',
               fontSize: 14,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Attach Option ────────────────────────────────────────────────────────────
+
+class _AttachOption extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _AttachOption({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 26),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: const TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 12,
               color: AppColors.textSecondary,
             ),
           ),

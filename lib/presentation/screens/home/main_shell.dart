@@ -5,31 +5,99 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_theme.dart';
 
-// Provider pour le contexte actif (locataire/bailleur)
-final activeContextProvider = StateProvider<String>((ref) => 'tenant');
+// ─── Provider contexte actif ──────────────────────────────────────────────────
 
-// Provider pour l'index de la bottom nav
-final bottomNavIndexProvider = StateProvider<int>((ref) => 0);
+final activeContextProvider =
+    StateNotifierProvider<ActiveContextNotifier, String>(
+        (ref) => ActiveContextNotifier());
 
-// Provider pour le compte non lu des messages
-final unreadMessagesProvider = StreamProvider<int>((ref) {
-  final userId = Supabase.instance.client.auth.currentUser?.id;
-  if (userId == null) return Stream.value(0);
+class ActiveContextNotifier extends StateNotifier<String> {
+  ActiveContextNotifier() : super('tenant') {
+    _loadFromSupabase();
+  }
 
-  return Supabase.instance.client
-      .from('conversations')
-      .stream(primaryKey: ['id'])
-      .map((data) {
-        int total = 0;
-        for (final conv in data) {
-          final isTenant = conv['tenant_id'] == userId;
-          total += isTenant
-              ? (conv['tenant_unread'] as int? ?? 0)
-              : (conv['landlord_unread'] as int? ?? 0);
+  Future<void> _loadFromSupabase() async {
+    try {
+      final userId =
+          Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) return;
+
+      final profile = await Supabase.instance.client
+          .from('profiles')
+          .select('active_context, role')
+          .eq('id', userId)
+          .maybeSingle();
+
+      if (profile != null) {
+        final activeCtx =
+            profile['active_context'] as String? ??
+                'tenant';
+        final role =
+            profile['role'] as String? ?? 'locataire';
+
+        if (role == 'bailleur') {
+          state = 'landlord';
+        } else {
+          state = activeCtx;
         }
-        return total;
-      });
+      }
+    } catch (e) {
+      debugPrint('Load context error: $e');
+    }
+  }
+
+  Future<void> setContext(String ctx) async {
+    state = ctx;
+    try {
+      final userId =
+          Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) return;
+      await Supabase.instance.client
+          .from('profiles')
+          .update({'active_context': ctx})
+          .eq('id', userId);
+    } catch (e) {
+      debugPrint('Set context error: $e');
+    }
+  }
+}
+
+// ─── Provider index bottom nav ────────────────────────────────────────────────
+
+final bottomNavIndexProvider =
+    StateProvider<int>((ref) => 0);
+
+// ─── Provider messages non lus ────────────────────────────────────────────────
+
+final unreadMessagesProvider =
+    FutureProvider<int>((ref) async {
+  final userId =
+      Supabase.instance.client.auth.currentUser?.id;
+  if (userId == null) return 0;
+
+  try {
+    final response = await Supabase.instance.client
+        .from('conversations')
+        .select('tenant_id, landlord_id, tenant_unread, landlord_unread')
+        .or('tenant_id.eq.$userId,landlord_id.eq.$userId');
+
+    int total = 0;
+    for (final conv in response as List) {
+      final convMap =
+          Map<String, dynamic>.from(conv as Map);
+      final isTenant = convMap['tenant_id'] == userId;
+      total += isTenant
+          ? (convMap['tenant_unread'] as int? ?? 0)
+          : (convMap['landlord_unread'] as int? ?? 0);
+    }
+    return total;
+  } catch (e) {
+    debugPrint('Unread count error: $e');
+    return 0;
+  }
 });
+
+// ─── MainShell ────────────────────────────────────────────────────────────────
 
 class MainShell extends ConsumerWidget {
   final Widget child;
@@ -52,7 +120,8 @@ class MainShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final location = GoRouterState.of(context).matchedLocation;
+    final location =
+        GoRouterState.of(context).matchedLocation;
     final currentIndex = _locationToIndex(location);
     final unreadAsync = ref.watch(unreadMessagesProvider);
     final unreadCount = unreadAsync.value ?? 0;
@@ -71,7 +140,9 @@ class MainShell extends ConsumerWidget {
           unreadCount: unreadCount,
           onTap: (index) {
             if (index != currentIndex) {
-              ref.read(bottomNavIndexProvider.notifier).state = index;
+              ref
+                  .read(bottomNavIndexProvider.notifier)
+                  .state = index;
               context.go(_routes[index]);
             }
           },
@@ -80,6 +151,8 @@ class MainShell extends ConsumerWidget {
     );
   }
 }
+
+// ─── Bottom Navigation ────────────────────────────────────────────────────────
 
 class _CamerImmoBottomNav extends StatelessWidget {
   final int currentIndex;
@@ -109,11 +182,10 @@ class _CamerImmoBottomNav extends StatelessWidget {
         top: false,
         child: Padding(
           padding: const EdgeInsets.symmetric(
-            horizontal: 8,
-            vertical: 8,
-          ),
+              horizontal: 8, vertical: 8),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            mainAxisAlignment:
+                MainAxisAlignment.spaceAround,
             children: [
               _NavItem(
                 icon: Icons.home_outlined,
@@ -134,7 +206,8 @@ class _CamerImmoBottomNav extends StatelessWidget {
                 activeIcon: Icons.chat_bubble_rounded,
                 label: 'Messages',
                 isActive: currentIndex == 2,
-                badge: unreadCount > 0 ? unreadCount : null,
+                badge:
+                    unreadCount > 0 ? unreadCount : null,
                 onTap: () => onTap(2),
               ),
               _NavItem(
@@ -184,9 +257,7 @@ class _NavItem extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 8,
-        ),
+            horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: isActive
               ? AppColors.primary.withOpacity(0.1)

@@ -4,23 +4,35 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_theme.dart';
 
-// ─── Providers ────────────────────────────────────────────────────────────────
+// ─── Provider ────────────────────────────────────────────────────────────────
 
 final conversationsProvider =
-    StreamProvider<List<Map<String, dynamic>>>((ref) {
-  final userId = Supabase.instance.client.auth.currentUser?.id;
-  if (userId == null) return Stream.value([]);
+    FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  final userId =
+      Supabase.instance.client.auth.currentUser?.id;
+  if (userId == null) return [];
 
-  return Supabase.instance.client
-      .from('conversations')
-      .stream(primaryKey: ['id'])
-      .order('updated_at', ascending: false)
-      .map((data) => data
-          .where((conv) =>
-              conv['tenant_id'] == userId ||
-              conv['landlord_id'] == userId)
-          .map((e) => Map<String, dynamic>.from(e))
-          .toList());
+  try {
+    final response = await Supabase.instance.client
+        .from('conversations')
+        .select('''
+          *,
+          tenant:profiles!conversations_tenant_id_fkey(
+            id, full_name, avatar_url, is_online),
+          landlord:profiles!conversations_landlord_id_fkey(
+            id, full_name, avatar_url, is_online),
+          properties(id, title, monthly_rent)
+        ''')
+        .or('tenant_id.eq.$userId,landlord_id.eq.$userId')
+        .order('updated_at', ascending: false);
+
+    return (response as List)
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
+  } catch (e) {
+    debugPrint('Conversations fetch error: $e');
+    return [];
+  }
 });
 
 // ─── ConversationsScreen ──────────────────────────────────────────────────────
@@ -37,47 +49,49 @@ class _ConversationsScreenState
     extends ConsumerState<ConversationsScreen> {
   String _searchQuery = '';
   int _selectedTab = 0;
-  final List<String> _tabs = ['Tous', 'Non lus', 'Archivés'];
+  final List<String> _tabs = [
+    'Tous',
+    'Non lus',
+    'Archivés'
+  ];
 
   @override
   Widget build(BuildContext context) {
-    final conversationsAsync = ref.watch(conversationsProvider);
+    final conversationsAsync =
+        ref.watch(conversationsProvider);
     final userId =
-        Supabase.instance.client.auth.currentUser?.id ?? '';
+        Supabase.instance.client.auth.currentUser?.id ??
+            '';
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Column(
         children: [
-          // Header
           _buildHeader(),
-
-          // Corps
           Expanded(
             child: conversationsAsync.when(
               loading: () => _ConversationsSkeleton(),
               error: (e, __) {
-                debugPrint('Conversations error: $e');
-                return const Center(
-                  child: Text(
-                    'Erreur de chargement',
-                    style: TextStyle(fontFamily: 'Poppins'),
-                  ),
-                );
+                debugPrint('Conv error: $e');
+                return _EmptyConversations(
+                    isFiltered: false);
               },
               data: (conversations) {
-                // Filtrer selon onglet et recherche
                 List<Map<String, dynamic>> filtered =
                     conversations;
 
                 if (_selectedTab == 1) {
-                  // Non lus
-                  filtered = conversations.where((conv) {
+                  filtered =
+                      conversations.where((conv) {
                     final isTenant =
                         conv['tenant_id'] == userId;
                     final unread = isTenant
-                        ? (conv['tenant_unread'] as int? ?? 0)
-                        : (conv['landlord_unread'] as int? ?? 0);
+                        ? (conv['tenant_unread']
+                                as int? ??
+                            0)
+                        : (conv['landlord_unread']
+                                as int? ??
+                            0);
                     return unread > 0;
                   }).toList();
                 }
@@ -85,10 +99,29 @@ class _ConversationsScreenState
                 if (_searchQuery.isNotEmpty) {
                   filtered = filtered.where((conv) {
                     final lastMsg =
-                        (conv['last_message'] as String? ?? '')
+                        (conv['last_message']
+                                    as String? ??
+                                '')
                             .toLowerCase();
-                    return lastMsg
-                        .contains(_searchQuery.toLowerCase());
+                    final tenant = conv['tenant']
+                        as Map<String, dynamic>?;
+                    final landlord = conv['landlord']
+                        as Map<String, dynamic>?;
+                    final tenantName =
+                        (tenant?['full_name']
+                                    as String? ??
+                                '')
+                            .toLowerCase();
+                    final landlordName =
+                        (landlord?['full_name']
+                                    as String? ??
+                                '')
+                            .toLowerCase();
+                    final q =
+                        _searchQuery.toLowerCase();
+                    return lastMsg.contains(q) ||
+                        tenantName.contains(q) ||
+                        landlordName.contains(q);
                   }).toList();
                 }
 
@@ -99,22 +132,28 @@ class _ConversationsScreenState
                   );
                 }
 
-                return ListView.separated(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 8,
-                  ),
-                  itemCount: filtered.length,
-                  separatorBuilder: (_, __) => const Divider(
-                    height: 1,
-                    indent: 84,
-                    endIndent: 20,
-                  ),
-                  itemBuilder: (context, index) {
-                    return _ConversationTile(
+                return RefreshIndicator(
+                  color: AppColors.primary,
+                  onRefresh: () async {
+                    ref.invalidate(
+                        conversationsProvider);
+                  },
+                  child: ListView.separated(
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 8),
+                    itemCount: filtered.length,
+                    separatorBuilder: (_, __) =>
+                        const Divider(
+                      height: 1,
+                      indent: 84,
+                      endIndent: 20,
+                    ),
+                    itemBuilder: (context, index) =>
+                        _ConversationTile(
                       conversation: filtered[index],
                       currentUserId: userId,
-                    );
-                  },
+                    ),
+                  ),
                 );
               },
             ),
@@ -125,22 +164,45 @@ class _ConversationsScreenState
   }
 
   Widget _buildHeader() {
+    final user =
+        Supabase.instance.client.auth.currentUser;
+    final avatarUrl =
+        user?.userMetadata?['avatar_url'] as String?;
+
     return Container(
       color: AppColors.primary,
       child: SafeArea(
         bottom: false,
         child: Column(
           children: [
-            // Titre + bouton nouveau
             Padding(
-              padding: const EdgeInsets.fromLTRB(
-                  20, 12, 12, 0),
+              padding:
+                  const EdgeInsets.fromLTRB(20, 12, 12, 0),
               child: Row(
                 children: [
-                  // Avatar
-                  _buildAvatar(),
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color:
+                          Colors.white.withOpacity(0.2),
+                      border: Border.all(
+                          color: Colors.white
+                              .withOpacity(0.5),
+                          width: 2),
+                    ),
+                    child: avatarUrl != null
+                        ? ClipOval(
+                            child: Image.network(
+                                avatarUrl,
+                                fit: BoxFit.cover))
+                        : const Icon(
+                            Icons.person_rounded,
+                            color: Colors.white,
+                            size: 18),
+                  ),
                   const SizedBox(width: 12),
-
                   const Text(
                     'CamerImmo',
                     style: TextStyle(
@@ -150,25 +212,19 @@ class _ConversationsScreenState
                       color: Colors.white,
                     ),
                   ),
-
                   const Spacer(),
-
-                  // Cloche notifs
                   IconButton(
                     onPressed: () {},
                     icon: const Icon(
-                      Icons.notifications_outlined,
-                      color: Colors.white,
-                    ),
+                        Icons.notifications_outlined,
+                        color: Colors.white),
                   ),
                 ],
               ),
             ),
-
-            // Titre Messages + bouton +
             Padding(
-              padding: const EdgeInsets.fromLTRB(
-                  20, 8, 20, 0),
+              padding:
+                  const EdgeInsets.fromLTRB(20, 8, 20, 0),
               child: Row(
                 mainAxisAlignment:
                     MainAxisAlignment.spaceBetween,
@@ -182,26 +238,27 @@ class _ConversationsScreenState
                       color: Colors.white,
                     ),
                   ),
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.add_comment_outlined,
-                      color: Colors.white,
-                      size: 22,
+                  GestureDetector(
+                    onTap: () =>
+                        ref.invalidate(conversationsProvider),
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius:
+                            BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                          Icons.refresh,
+                          color: Colors.white,
+                          size: 22),
                     ),
                   ),
                 ],
               ),
             ),
-
             const SizedBox(height: 12),
-
-            // Barre de recherche
             Padding(
               padding: const EdgeInsets.symmetric(
                   horizontal: 20),
@@ -215,36 +272,32 @@ class _ConversationsScreenState
                   onChanged: (val) =>
                       setState(() => _searchQuery = val),
                   style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 14,
-                    color: Colors.white,
-                  ),
+                      fontFamily: 'Poppins',
+                      fontSize: 14,
+                      color: Colors.white),
                   decoration: InputDecoration(
-                    hintText: 'Rechercher une discussion...',
+                    hintText:
+                        'Rechercher une discussion...',
                     hintStyle: TextStyle(
                       fontFamily: 'Poppins',
                       fontSize: 14,
-                      color: Colors.white.withOpacity(0.6),
+                      color:
+                          Colors.white.withOpacity(0.6),
                     ),
-                    prefixIcon: Icon(
-                      Icons.search,
-                      color: Colors.white.withOpacity(0.7),
-                      size: 20,
-                    ),
+                    prefixIcon: Icon(Icons.search,
+                        color: Colors.white
+                            .withOpacity(0.7),
+                        size: 20),
                     border: InputBorder.none,
                     contentPadding:
                         const EdgeInsets.symmetric(
-                      vertical: 12,
-                    ),
+                            vertical: 12),
                     filled: false,
                   ),
                 ),
               ),
             ),
-
             const SizedBox(height: 12),
-
-            // Onglets
             Padding(
               padding: const EdgeInsets.symmetric(
                   horizontal: 20),
@@ -252,17 +305,16 @@ class _ConversationsScreenState
                 children: List.generate(
                   _tabs.length,
                   (index) => Padding(
-                    padding: const EdgeInsets.only(right: 8),
+                    padding:
+                        const EdgeInsets.only(right: 8),
                     child: GestureDetector(
                       onTap: () => setState(
                           () => _selectedTab = index),
                       child: AnimatedContainer(
-                        duration:
-                            const Duration(milliseconds: 200),
+                        duration: const Duration(
+                            milliseconds: 200),
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
+                            horizontal: 16, vertical: 8),
                         decoration: BoxDecoration(
                           color: _selectedTab == index
                               ? Colors.white
@@ -293,49 +345,17 @@ class _ConversationsScreenState
                 ),
               ),
             ),
-
             const SizedBox(height: 12),
           ],
         ),
       ),
     );
   }
-
-  Widget _buildAvatar() {
-    final user = Supabase.instance.client.auth.currentUser;
-    final avatarUrl =
-        user?.userMetadata?['avatar_url'] as String?;
-
-    return Container(
-      width: 36,
-      height: 36,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: Colors.white.withOpacity(0.2),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.5),
-          width: 2,
-        ),
-      ),
-      child: avatarUrl != null
-          ? ClipOval(
-              child: Image.network(
-                avatarUrl,
-                fit: BoxFit.cover,
-              ),
-            )
-          : const Icon(
-              Icons.person_rounded,
-              color: Colors.white,
-              size: 18,
-            ),
-    );
-  }
 }
 
-// ─── Tile de conversation ─────────────────────────────────────────────────────
+// ─── Conversation Tile ────────────────────────────────────────────────────────
 
-class _ConversationTile extends ConsumerWidget {
+class _ConversationTile extends StatelessWidget {
   final Map<String, dynamic> conversation;
   final String currentUserId;
 
@@ -345,12 +365,30 @@ class _ConversationTile extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final isTenant =
         conversation['tenant_id'] == currentUserId;
-    final otherUserId = isTenant
-        ? conversation['landlord_id'] as String? ?? ''
-        : conversation['tenant_id'] as String? ?? '';
+
+    final otherUser = isTenant
+        ? conversation['landlord']
+            as Map<String, dynamic>?
+        : conversation['tenant']
+            as Map<String, dynamic>?;
+
+    final property = conversation['properties']
+        as Map<String, dynamic>?;
+
+    final otherName =
+        otherUser?['full_name'] as String? ??
+            'Utilisateur';
+    final otherAvatar =
+        otherUser?['avatar_url'] as String?;
+    final isOnline =
+        otherUser?['is_online'] as bool? ?? false;
+    final propertyTitle =
+        property?['title'] as String? ??
+            'Bien immobilier';
+
     final unreadCount = isTenant
         ? (conversation['tenant_unread'] as int? ?? 0)
         : (conversation['landlord_unread'] as int? ?? 0);
@@ -373,247 +411,197 @@ class _ConversationTile extends ConsumerWidget {
       }
     }
 
-    return FutureBuilder<Map<String, dynamic>?>(
-      future: _fetchOtherUser(otherUserId),
-      builder: (context, snapshot) {
-        final otherUser = snapshot.data;
-        final otherName =
-            otherUser?['full_name'] as String? ??
-                'Utilisateur';
-        final otherAvatar =
-            otherUser?['avatar_url'] as String?;
-
-        return GestureDetector(
-          onTap: () => context.go(
-            '/chat/${conversation['id']}',
-          ),
-          child: Container(
-            color: Colors.transparent,
-            padding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 14,
-            ),
-            child: Row(
+    return GestureDetector(
+      onTap: () =>
+          context.go('/chat/${conversation['id']}'),
+      child: Container(
+        color: Colors.transparent,
+        padding: const EdgeInsets.symmetric(
+            horizontal: 20, vertical: 14),
+        child: Row(
+          children: [
+            // Avatar
+            Stack(
               children: [
-                // Avatar
-                Stack(
-                  children: [
-                    Container(
-                      width: 54,
-                      height: 54,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppColors.surfaceVariant,
-                        border: unreadCount > 0
-                            ? Border.all(
-                                color: AppColors.primary,
-                                width: 2,
-                              )
-                            : null,
-                      ),
-                      child: otherAvatar != null
-                          ? ClipOval(
-                              child: Image.network(
-                                otherAvatar,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) =>
+                Container(
+                  width: 54,
+                  height: 54,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.surfaceVariant,
+                    border: unreadCount > 0
+                        ? Border.all(
+                            color: AppColors.primary,
+                            width: 2)
+                        : null,
+                  ),
+                  child: otherAvatar != null
+                      ? ClipOval(
+                          child: Image.network(
+                            otherAvatar,
+                            fit: BoxFit.cover,
+                            errorBuilder:
+                                (_, __, ___) =>
                                     const Icon(
-                                  Icons.person_rounded,
-                                  color: AppColors.textTertiary,
-                                  size: 26,
-                                ),
-                              ),
-                            )
-                          : const Icon(
                               Icons.person_rounded,
-                              color: AppColors.textTertiary,
+                              color:
+                                  AppColors.textTertiary,
                               size: 26,
                             ),
-                    ),
-                    // Point non lu
-                    if (unreadCount > 0)
-                      Positioned(
-                        top: 0,
-                        right: 0,
-                        child: Container(
-                          width: 14,
-                          height: 14,
-                          decoration: const BoxDecoration(
-                            color: AppColors.error,
-                            shape: BoxShape.circle,
                           ),
+                        )
+                      : const Icon(
+                          Icons.person_rounded,
+                          color: AppColors.textTertiary,
+                          size: 26,
                         ),
-                      ),
-                  ],
                 ),
+                if (isOnline)
+                  Positioned(
+                    bottom: 2,
+                    right: 2,
+                    child: Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: AppColors.success,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                            color: AppColors.surface,
+                            width: 2),
+                      ),
+                    ),
+                  ),
+                if (unreadCount > 0)
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: Container(
+                      width: 14,
+                      height: 14,
+                      decoration: const BoxDecoration(
+                        color: AppColors.error,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
 
-                const SizedBox(width: 14),
+            const SizedBox(width: 14),
 
-                // Contenu
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
+            // Contenu
+            Expanded(
+              child: Column(
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment:
+                        MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        mainAxisAlignment:
-                            MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            otherName,
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 15,
-                              fontWeight: unreadCount > 0
-                                  ? FontWeight.w700
-                                  : FontWeight.w600,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          Text(
-                            timeLabel,
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 12,
-                              color: unreadCount > 0
-                                  ? AppColors.primary
-                                  : AppColors.textTertiary,
-                              fontWeight: unreadCount > 0
-                                  ? FontWeight.w600
-                                  : FontWeight.w400,
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 2),
-
-                      // Titre du bien
-                      FutureBuilder<String>(
-                        future: _fetchPropertyTitle(
-                          conversation['property_id']
-                                  as String? ??
-                              '',
+                      Text(
+                        otherName,
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 15,
+                          fontWeight: unreadCount > 0
+                              ? FontWeight.w700
+                              : FontWeight.w600,
+                          color: AppColors.textPrimary,
                         ),
-                        builder: (context, snap) {
-                          return Text(
-                            snap.data ?? 'Bien immobilier',
-                            style: const TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 12,
-                              color: AppColors.accent,
-                              fontWeight: FontWeight.w500,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          );
-                        },
                       ),
-
-                      const SizedBox(height: 3),
-
-                      Row(
-                        children: [
-                          // Double coche si lu
-                          if (unreadCount == 0 &&
-                              lastMessage.isNotEmpty)
-                            const Padding(
-                              padding: EdgeInsets.only(right: 4),
-                              child: Icon(
-                                Icons.done_all,
-                                size: 14,
-                                color: AppColors.primary,
-                              ),
-                            ),
-
-                          Expanded(
-                            child: Text(
-                              lastMessage.isEmpty
-                                  ? 'Démarrer une conversation'
-                                  : lastMessage,
-                              style: TextStyle(
-                                fontFamily: 'Poppins',
-                                fontSize: 13,
-                                color: unreadCount > 0
-                                    ? AppColors.textPrimary
-                                    : AppColors.textSecondary,
-                                fontWeight: unreadCount > 0
-                                    ? FontWeight.w500
-                                    : FontWeight.w400,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-
-                          // Badge nb non lus
-                          if (unreadCount > 0)
-                            Container(
-                              margin: const EdgeInsets.only(
-                                  left: 8),
-                              width: 22,
-                              height: 22,
-                              decoration: const BoxDecoration(
-                                color: AppColors.primary,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Center(
-                                child: Text(
-                                  unreadCount > 9
-                                      ? '9+'
-                                      : '$unreadCount',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w700,
-                                    fontFamily: 'Poppins',
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
+                      Text(
+                        timeLabel,
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 12,
+                          color: unreadCount > 0
+                              ? AppColors.primary
+                              : AppColors.textTertiary,
+                          fontWeight: unreadCount > 0
+                              ? FontWeight.w600
+                              : FontWeight.w400,
+                        ),
                       ),
                     ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 2),
+                  Text(
+                    propertyTitle,
+                    style: const TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 12,
+                      color: AppColors.accent,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 3),
+                  Row(
+                    children: [
+                      if (unreadCount == 0 &&
+                          lastMessage.isNotEmpty)
+                        const Padding(
+                          padding:
+                              EdgeInsets.only(right: 4),
+                          child: Icon(Icons.done_all,
+                              size: 14,
+                              color: AppColors.primary),
+                        ),
+                      Expanded(
+                        child: Text(
+                          lastMessage.isEmpty
+                              ? 'Démarrer une conversation'
+                              : lastMessage,
+                          style: TextStyle(
+                            fontFamily: 'Poppins',
+                            fontSize: 13,
+                            color: unreadCount > 0
+                                ? AppColors.textPrimary
+                                : AppColors.textSecondary,
+                            fontWeight: unreadCount > 0
+                                ? FontWeight.w500
+                                : FontWeight.w400,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (unreadCount > 0)
+                        Container(
+                          margin:
+                              const EdgeInsets.only(left: 8),
+                          width: 22,
+                          height: 22,
+                          decoration: const BoxDecoration(
+                            color: AppColors.primary,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Center(
+                            child: Text(
+                              unreadCount > 9
+                                  ? '9+'
+                                  : '$unreadCount',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                fontFamily: 'Poppins',
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        );
-      },
+          ],
+        ),
+      ),
     );
-  }
-
-  Future<Map<String, dynamic>?> _fetchOtherUser(
-      String userId) async {
-    if (userId.isEmpty) return null;
-    try {
-      final response = await Supabase.instance.client
-          .from('profiles')
-          .select('full_name, avatar_url, is_online')
-          .eq('id', userId)
-          .maybeSingle();
-      return response as Map<String, dynamic>?;
-    } catch (e) {
-      return null;
-    }
-  }
-
-  Future<String> _fetchPropertyTitle(
-      String propertyId) async {
-    if (propertyId.isEmpty) return 'Bien immobilier';
-    try {
-      final response = await Supabase.instance.client
-          .from('properties')
-          .select('title')
-          .eq('id', propertyId)
-          .maybeSingle();
-      return (response as Map<String, dynamic>?)?['title']
-              as String? ??
-          'Bien immobilier';
-    } catch (e) {
-      return 'Bien immobilier';
-    }
   }
 }
 
@@ -646,7 +634,7 @@ class _EmptyConversations extends StatelessWidget {
           Text(
             isFiltered
                 ? 'Aucune conversation trouvée'
-                : 'Plus de conversations récentes',
+                : 'Pas encore de conversations',
             style: const TextStyle(
               fontFamily: 'Poppins',
               fontSize: 17,
@@ -658,7 +646,7 @@ class _EmptyConversations extends StatelessWidget {
           Text(
             isFiltered
                 ? 'Essayez de modifier vos filtres'
-                : 'Commencez à discuter avec les\npropriétaires pour concrétiser\nvos projets immo.',
+                : 'Contactez un propriétaire depuis\nla page d\'un bien pour commencer.',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontFamily: 'Poppins',
@@ -668,6 +656,17 @@ class _EmptyConversations extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: () => context.go('/search'),
+            child: const Text(
+              'Explorer les biens',
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -686,9 +685,7 @@ class _ConversationsSkeleton extends StatelessWidget {
           const Divider(height: 1, indent: 84),
       itemBuilder: (_, __) => Padding(
         padding: const EdgeInsets.symmetric(
-          horizontal: 20,
-          vertical: 14,
-        ),
+            horizontal: 20, vertical: 14),
         child: Row(
           children: [
             Container(
@@ -702,14 +699,16 @@ class _ConversationsSkeleton extends StatelessWidget {
             const SizedBox(width: 14),
             Expanded(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
                 children: [
                   Container(
                     height: 14,
                     width: 120,
                     decoration: BoxDecoration(
                       color: AppColors.surfaceVariant,
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius:
+                          BorderRadius.circular(6),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -718,7 +717,8 @@ class _ConversationsSkeleton extends StatelessWidget {
                     width: 200,
                     decoration: BoxDecoration(
                       color: AppColors.surfaceVariant,
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius:
+                          BorderRadius.circular(6),
                     ),
                   ),
                 ],
