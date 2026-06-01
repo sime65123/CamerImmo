@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'dart:typed_data';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_theme.dart';
@@ -45,18 +47,35 @@ class _PublishPropertyScreenState
 
   // Étape 4
   final List<XFile> _selectedImages = [];
+  final List<Uint8List> _selectedImageBytes = [];
   final _rentCtrl = TextEditingController();
   final _depositCtrl = TextEditingController();
   int _minLease = 12;
   Map<String, dynamic>? _aiSuggestion;
 
   final List<Map<String, dynamic>> _propertyTypes = [
-    {'value': 'appartement', 'label': 'Appartement', 'icon': Icons.apartment},
+    {
+      'value': 'appartement',
+      'label': 'Appartement',
+      'icon': Icons.apartment
+    },
     {'value': 'villa', 'label': 'Villa', 'icon': Icons.home},
     {'value': 'studio', 'label': 'Studio', 'icon': Icons.bed},
-    {'value': 'chambre', 'label': 'Chambre', 'icon': Icons.bedroom_parent},
-    {'value': 'bureau', 'label': 'Bureau', 'icon': Icons.business},
-    {'value': 'terrain', 'label': 'Terrain', 'icon': Icons.landscape},
+    {
+      'value': 'chambre',
+      'label': 'Chambre',
+      'icon': Icons.bedroom_parent
+    },
+    {
+      'value': 'bureau',
+      'label': 'Bureau',
+      'icon': Icons.business
+    },
+    {
+      'value': 'terrain',
+      'label': 'Terrain',
+      'icon': Icons.landscape
+    },
   ];
 
   @override
@@ -78,8 +97,6 @@ class _PublishPropertyScreenState
         curve: Curves.easeInOut,
       );
       setState(() => _currentStep++);
-
-      // Charger suggestion IA à l'étape 4
       if (_currentStep == 3) {
         _loadAiSuggestion();
       }
@@ -100,18 +117,21 @@ class _PublishPropertyScreenState
 
   Future<void> _loadAiSuggestion() async {
     try {
-      final response = await Supabase.instance.client.rpc(
+      final response =
+          await Supabase.instance.client.rpc(
         'suggest_property_price',
         params: {
           'p_city': _selectedCity,
-          'p_neighborhood': _neighborhoodCtrl.text.trim(),
+          'p_neighborhood':
+              _neighborhoodCtrl.text.trim(),
           'p_type': _selectedType,
           'p_surface': _surface,
         },
       );
       if (response != null && mounted) {
         setState(() => _aiSuggestion =
-            Map<String, dynamic>.from(response as Map));
+            Map<String, dynamic>.from(
+                response as Map));
       }
     } catch (e) {
       debugPrint('AI suggestion error: $e');
@@ -126,9 +146,13 @@ class _PublishPropertyScreenState
         imageQuality: 85,
       );
       if (images.isNotEmpty) {
-        setState(() {
-          _selectedImages.addAll(images);
-        });
+        for (final image in images) {
+          final bytes = await image.readAsBytes();
+          setState(() {
+            _selectedImages.add(image);
+            _selectedImageBytes.add(bytes);
+          });
+        }
       }
     } catch (e) {
       debugPrint('Pick images error: $e');
@@ -148,9 +172,11 @@ class _PublishPropertyScreenState
     setState(() => _isSaving = true);
 
     try {
-      final userId =
-          Supabase.instance.client.auth.currentUser?.id;
-      if (userId == null) throw Exception('Non connecté');
+      final userId = Supabase
+          .instance.client.auth.currentUser?.id;
+      if (userId == null) {
+        throw Exception('Non connecté');
+      }
 
       final rent = int.tryParse(
               _rentCtrl.text.replaceAll(' ', '')) ??
@@ -169,7 +195,8 @@ class _PublishPropertyScreenState
         'property_type': _selectedType,
         'status': 'disponible',
         'city': _selectedCity,
-        'neighborhood': _neighborhoodCtrl.text.trim(),
+        'neighborhood':
+            _neighborhoodCtrl.text.trim(),
         'address': _addressCtrl.text.trim(),
         'surface_m2': _surface,
         'nb_rooms': _rooms,
@@ -184,7 +211,8 @@ class _PublishPropertyScreenState
         'monthly_rent': rent,
         'deposit_amount': deposit,
         'min_lease_months': _minLease,
-        'available_from': _availableFrom?.toIso8601String(),
+        'available_from':
+            _availableFrom?.toIso8601String(),
         'ai_suggested_price':
             _aiSuggestion?['suggested_price'],
       })
@@ -195,23 +223,46 @@ class _PublishPropertyScreenState
           (response as Map<String, dynamic>)['id']
               as String;
 
+      debugPrint('Property created: $propertyId');
+
       // Upload images
-      for (int i = 0; i < _selectedImages.length; i++) {
+      for (int i = 0;
+          i < _selectedImages.length;
+          i++) {
         try {
           final bytes =
               await _selectedImages[i].readAsBytes();
+          final ext = _selectedImages[i]
+              .name
+              .split('.')
+              .last
+              .toLowerCase();
+          final validExt = ['jpg', 'jpeg', 'png', 'webp']
+                  .contains(ext)
+              ? ext
+              : 'jpg';
           final fileName =
-              'prop_${propertyId}_$i.jpg';
-          final path =
-              '$propertyId/$fileName';
+              'img_${DateTime.now().millisecondsSinceEpoch}_$i.$validExt';
+          final path = '$propertyId/$fileName';
+
+          debugPrint('Uploading image $i: $path');
 
           await Supabase.instance.client.storage
-              .from(AppConstants.propertyImagesBucket)
-              .uploadBinary(path, bytes);
+              .from('property-images')
+              .uploadBinary(
+                path,
+                bytes,
+                fileOptions: FileOptions(
+                  contentType: 'image/$validExt',
+                  upsert: true,
+                ),
+              );
 
           final url = Supabase.instance.client.storage
-              .from(AppConstants.propertyImagesBucket)
+              .from('property-images')
               .getPublicUrl(path);
+
+          debugPrint('Image $i URL: $url');
 
           await Supabase.instance.client
               .from('property_images')
@@ -224,6 +275,7 @@ class _PublishPropertyScreenState
           });
         } catch (e) {
           debugPrint('Upload image $i error: $e');
+          // Continuer même si une image échoue
         }
       }
 
@@ -237,7 +289,8 @@ class _PublishPropertyScreenState
             backgroundColor: AppColors.success,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12)),
+                borderRadius:
+                    BorderRadius.circular(12)),
             margin: const EdgeInsets.all(16),
           ),
         );
@@ -245,7 +298,8 @@ class _PublishPropertyScreenState
       }
     } catch (e) {
       debugPrint('Publish error: $e');
-      _showError('Erreur lors de la publication : $e');
+      _showError(
+          'Erreur lors de la publication : $e');
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -277,7 +331,8 @@ class _PublishPropertyScreenState
           Expanded(
             child: PageView(
               controller: _pageController,
-              physics: const NeverScrollableScrollPhysics(),
+              physics:
+                  const NeverScrollableScrollPhysics(),
               children: [
                 _buildStep1(),
                 _buildStep2(),
@@ -312,15 +367,21 @@ class _PublishPropertyScreenState
               Row(
                 children: [
                   GestureDetector(
-                    onTap: () => context.pop(),
+                    onTap: () {
+                      if (context.canPop()) {
+                        context.pop();
+                      } else {
+                        context.go('/home');
+                      }
+                    },
                     child: const Icon(Icons.close,
                         color: Colors.white),
                   ),
                   const SizedBox(width: 12),
-                  Expanded(
+                  const Expanded(
                     child: Text(
                       'Publier un bien',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: 'Poppins',
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
@@ -332,7 +393,8 @@ class _PublishPropertyScreenState
                     padding: const EdgeInsets.symmetric(
                         horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color:
+                          Colors.white.withOpacity(0.2),
                       borderRadius:
                           BorderRadius.circular(20),
                     ),
@@ -349,7 +411,6 @@ class _PublishPropertyScreenState
                 ],
               ),
               const SizedBox(height: 12),
-              // Barre de progression
               Row(
                 children: List.generate(4, (i) {
                   return Expanded(
@@ -377,7 +438,8 @@ class _PublishPropertyScreenState
                   style: TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 11,
-                    color: Colors.white.withOpacity(0.8),
+                    color:
+                        Colors.white.withOpacity(0.8),
                   ),
                 ),
               ),
@@ -387,6 +449,8 @@ class _PublishPropertyScreenState
       ),
     );
   }
+
+  // ─── Étape 1 ──────────────────────────────────────
 
   Widget _buildStep1() {
     return SingleChildScrollView(
@@ -398,7 +462,8 @@ class _PublishPropertyScreenState
           const SizedBox(height: 12),
           GridView.builder(
             shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
+            physics:
+                const NeverScrollableScrollPhysics(),
             gridDelegate:
                 const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 3,
@@ -412,12 +477,12 @@ class _PublishPropertyScreenState
               final isSelected =
                   _selectedType == type['value'];
               return GestureDetector(
-                onTap: () => setState(
-                    () => _selectedType =
+                onTap: () => setState(() =>
+                    _selectedType =
                         type['value'] as String),
                 child: AnimatedContainer(
-                  duration:
-                      const Duration(milliseconds: 200),
+                  duration: const Duration(
+                      milliseconds: 200),
                   decoration: BoxDecoration(
                     color: isSelected
                         ? AppColors.primaryLight
@@ -460,10 +525,9 @@ class _PublishPropertyScreenState
               );
             },
           ),
-
           const SizedBox(height: 24),
-
-          const _StepTitle(title: 'Titre de l\'annonce'),
+          const _StepTitle(
+              title: 'Titre de l\'annonce'),
           const SizedBox(height: 8),
           TextField(
             controller: _titleCtrl,
@@ -477,9 +541,7 @@ class _PublishPropertyScreenState
                   fontSize: 14),
             ),
           ),
-
           const SizedBox(height: 20),
-
           const _StepTitle(title: 'Description'),
           const SizedBox(height: 8),
           TextField(
@@ -495,9 +557,7 @@ class _PublishPropertyScreenState
                   fontSize: 14),
             ),
           ),
-
           const SizedBox(height: 20),
-
           const _StepTitle(
               title: 'Disponible à partir du'),
           const SizedBox(height: 8),
@@ -509,10 +569,10 @@ class _PublishPropertyScreenState
                 firstDate: DateTime.now(),
                 lastDate: DateTime.now()
                     .add(const Duration(days: 365)),
-                builder: (context, child) =>
-                    Theme(
+                builder: (context, child) => Theme(
                   data: Theme.of(context).copyWith(
-                    colorScheme: const ColorScheme.light(
+                    colorScheme:
+                        const ColorScheme.light(
                       primary: AppColors.primary,
                     ),
                   ),
@@ -528,7 +588,8 @@ class _PublishPropertyScreenState
                   horizontal: 16, vertical: 14),
               decoration: BoxDecoration(
                 color: AppColors.surfaceVariant,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius:
+                    BorderRadius.circular(12),
               ),
               child: Row(
                 children: [
@@ -553,12 +614,13 @@ class _PublishPropertyScreenState
               ),
             ),
           ),
-
           const SizedBox(height: 40),
         ],
       ),
     );
   }
+
+  // ─── Étape 2 ──────────────────────────────────────
 
   Widget _buildStep2() {
     return SingleChildScrollView(
@@ -595,15 +657,14 @@ class _PublishPropertyScreenState
                     .toList(),
                 onChanged: (val) {
                   if (val != null) {
-                    setState(() => _selectedCity = val);
+                    setState(
+                        () => _selectedCity = val);
                   }
                 },
               ),
             ),
           ),
-
           const SizedBox(height: 20),
-
           const _StepTitle(title: 'Quartier'),
           const SizedBox(height: 8),
           TextField(
@@ -621,9 +682,7 @@ class _PublishPropertyScreenState
                   color: AppColors.textTertiary),
             ),
           ),
-
           const SizedBox(height: 20),
-
           const _StepTitle(
               title: 'Adresse précise (optionnel)'),
           const SizedBox(height: 8),
@@ -639,10 +698,7 @@ class _PublishPropertyScreenState
                   fontSize: 14),
             ),
           ),
-
           const SizedBox(height: 16),
-
-          // Note confidentialité
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
@@ -667,12 +723,13 @@ class _PublishPropertyScreenState
               ],
             ),
           ),
-
           const SizedBox(height: 40),
         ],
       ),
     );
   }
+
+  // ─── Étape 3 ──────────────────────────────────────
 
   Widget _buildStep3() {
     return SingleChildScrollView(
@@ -680,7 +737,6 @@ class _PublishPropertyScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Surface
           Row(
             mainAxisAlignment:
                 MainAxisAlignment.spaceBetween,
@@ -706,10 +762,7 @@ class _PublishPropertyScreenState
             onChanged: (val) =>
                 setState(() => _surface = val),
           ),
-
           const SizedBox(height: 20),
-
-          // Pièces
           const _StepTitle(title: 'Chambres'),
           const SizedBox(height: 12),
           _StepperWidget(
@@ -720,10 +773,7 @@ class _PublishPropertyScreenState
             onIncrement: () =>
                 setState(() => _rooms++),
           ),
-
           const SizedBox(height: 20),
-
-          // Salles de bain
           const _StepTitle(title: 'Salles de bain'),
           const SizedBox(height: 12),
           _StepperWidget(
@@ -735,31 +785,28 @@ class _PublishPropertyScreenState
             onIncrement: () =>
                 setState(() => _bathrooms++),
           ),
-
           const SizedBox(height: 20),
-
-          // Étage
           const _StepTitle(title: 'Étage'),
           const SizedBox(height: 12),
           _StepperWidget(
             value: _floor,
             min: 0,
-            label: _floor == 0 ? 'RDC' : 'Étage $_floor',
+            label: _floor == 0
+                ? 'RDC'
+                : 'Étage $_floor',
             onDecrement: () => setState(
                 () => _floor =
                     (_floor - 1).clamp(0, 30)),
             onIncrement: () =>
                 setState(() => _floor++),
           ),
-
           const SizedBox(height: 24),
-
-          // Équipements
           const _StepTitle(title: 'Équipements'),
           const SizedBox(height: 12),
           GridView.count(
             shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
+            physics:
+                const NeverScrollableScrollPhysics(),
             crossAxisCount: 2,
             crossAxisSpacing: 10,
             mainAxisSpacing: 10,
@@ -809,12 +856,13 @@ class _PublishPropertyScreenState
               ),
             ],
           ),
-
           const SizedBox(height: 40),
         ],
       ),
     );
   }
+
+  // ─── Étape 4 ──────────────────────────────────────
 
   Widget _buildStep4() {
     return SingleChildScrollView(
@@ -822,7 +870,6 @@ class _PublishPropertyScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Photos
           const _StepTitle(title: 'Photos'),
           const SizedBox(height: 4),
           Text(
@@ -838,7 +885,8 @@ class _PublishPropertyScreenState
           // Grille photos
           GridView.builder(
             shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
+            physics:
+                const NeverScrollableScrollPhysics(),
             gridDelegate:
                 const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 3,
@@ -853,20 +901,14 @@ class _PublishPropertyScreenState
                   child: Container(
                     decoration: BoxDecoration(
                       color: AppColors.surfaceVariant,
-                      borderRadius:
-                          BorderRadius.circular(12),
-                      border: Border.all(
-                          color: AppColors.border,
-                          style:
-                              BorderStyle.solid),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.border),
                     ),
                     child: Column(
-                      mainAxisAlignment:
-                          MainAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         const Icon(Icons.add_photo_alternate,
-                            color: AppColors.primary,
-                            size: 28),
+                            color: AppColors.primary, size: 28),
                         const SizedBox(height: 4),
                         Text('Ajouter',
                             style: TextStyle(
@@ -879,54 +921,55 @@ class _PublishPropertyScreenState
                   ),
                 );
               }
+
+              // ✅ Image.memory — fonctionne sur Web ET Mobile
               return Stack(
                 children: [
                   ClipRRect(
-                    borderRadius:
-                        BorderRadius.circular(12),
-                    child: Image.network(
-                      _selectedImages[index].path,
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      height: double.infinity,
-                      errorBuilder: (_, __, ___) =>
-                          Container(
-                        color: AppColors.surfaceVariant,
-                        child: const Icon(Icons.image,
-                            color: AppColors.border),
-                      ),
-                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    child: index < _selectedImageBytes.length
+                        ? Image.memory(
+                            _selectedImageBytes[index],
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: double.infinity,
+                          )
+                        : Container(
+                            color: AppColors.surfaceVariant,
+                            child: const Icon(Icons.image,
+                                color: AppColors.border),
+                          ),
                   ),
                   if (index == 0)
                     Positioned(
                       top: 4,
                       left: 4,
                       child: Container(
-                        padding:
-                            const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: AppColors.primary,
-                          borderRadius:
-                              BorderRadius.circular(6),
+                          borderRadius: BorderRadius.circular(6),
                         ),
-                        child: const Text('Principal',
-                            style: TextStyle(
-                                fontFamily: 'Poppins',
-                                fontSize: 8,
-                                color: Colors.white,
-                                fontWeight:
-                                    FontWeight.w600)),
+                        child: const Text(
+                          'Principal',
+                          style: TextStyle(
+                            fontFamily: 'Poppins',
+                            fontSize: 8,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                     ),
                   Positioned(
                     top: 4,
                     right: 4,
                     child: GestureDetector(
-                      onTap: () => setState(() =>
-                          _selectedImages
-                              .removeAt(index)),
+                      onTap: () => setState(() {
+                        _selectedImages.removeAt(index);
+                        _selectedImageBytes.removeAt(index);
+                      }),
                       child: Container(
                         width: 22,
                         height: 22,
@@ -935,8 +978,7 @@ class _PublishPropertyScreenState
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(Icons.close,
-                            color: Colors.white,
-                            size: 12),
+                            color: Colors.white, size: 12),
                       ),
                     ),
                   ),
@@ -947,16 +989,18 @@ class _PublishPropertyScreenState
 
           const SizedBox(height: 24),
 
-          // Prix
-          const _StepTitle(title: 'Loyer mensuel (FCFA)'),
+          // Loyer
+          const _StepTitle(
+              title: 'Loyer mensuel (FCFA)'),
           const SizedBox(height: 8),
           TextField(
             controller: _rentCtrl,
             keyboardType: TextInputType.number,
             style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 16,
-                fontWeight: FontWeight.w600),
+              fontFamily: 'Poppins',
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
             decoration: InputDecoration(
               hintText: '150 000',
               hintStyle: TextStyle(
@@ -971,7 +1015,8 @@ class _PublishPropertyScreenState
 
           // Suggestion IA
           if (_aiSuggestion != null &&
-              _aiSuggestion!['suggested_price'] != null) ...[
+              _aiSuggestion!['suggested_price'] !=
+                  null) ...[
             const SizedBox(height: 12),
             GestureDetector(
               onTap: () {
@@ -982,10 +1027,10 @@ class _PublishPropertyScreenState
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: AppColors.primaryLighter,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius:
+                      BorderRadius.circular(12),
                   border: Border.all(
-                    color: AppColors.primaryLight,
-                  ),
+                      color: AppColors.primaryLight),
                 ),
                 child: Row(
                   children: [
@@ -1012,20 +1057,23 @@ class _PublishPropertyScreenState
                             style: const TextStyle(
                               fontFamily: 'Poppins',
                               fontSize: 13,
-                              color: AppColors.primaryDark,
+                              color:
+                                  AppColors.primaryDark,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const Text('Appliquer',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 12,
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600,
-                        )),
+                    const Text(
+                      'Appliquer',
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 12,
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -1034,6 +1082,7 @@ class _PublishPropertyScreenState
 
           const SizedBox(height: 20),
 
+          // Caution
           const _StepTitle(title: 'Caution (FCFA)'),
           const SizedBox(height: 8),
           TextField(
@@ -1063,13 +1112,15 @@ class _PublishPropertyScreenState
             children: [
               const _StepTitle(
                   title: 'Durée minimale du bail'),
-              Text('$_minLease mois',
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
-                  )),
+              Text(
+                '$_minLease mois',
+                style: const TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -1089,6 +1140,8 @@ class _PublishPropertyScreenState
       ),
     );
   }
+
+  // ─── Bottom Bar ───────────────────────────────────
 
   Widget _buildBottomBar() {
     final isLastStep = _currentStep == 3;
@@ -1118,10 +1171,12 @@ class _PublishPropertyScreenState
                 onPressed: _prevStep,
                 icon: const Icon(Icons.arrow_back,
                     size: 16),
-                label: const Text('Retour',
-                    style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 15)),
+                label: const Text(
+                  'Retour',
+                  style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 15),
+                ),
                 style: OutlinedButton.styleFrom(
                   foregroundColor:
                       AppColors.textSecondary,
@@ -1142,14 +1197,18 @@ class _PublishPropertyScreenState
             child: SizedBox(
               height: 52,
               child: ElevatedButton(
-                onPressed: _isSaving ? null : _nextStep,
+                onPressed:
+                    _isSaving ? null : _nextStep,
                 child: _isSaving
                     ? const SizedBox(
                         width: 22,
                         height: 22,
-                        child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2.5))
+                        child:
+                            CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2.5,
+                        ),
+                      )
                     : Text(
                         isLastStep
                             ? 'Publier l\'annonce'
@@ -1178,13 +1237,15 @@ class _StepTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(title,
-        style: const TextStyle(
-          fontFamily: 'Poppins',
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary,
-        ));
+    return Text(
+      title,
+      style: const TextStyle(
+        fontFamily: 'Poppins',
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+        color: AppColors.textPrimary,
+      ),
+    );
   }
 }
 
@@ -1213,20 +1274,20 @@ class _StepperWidget extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: value <= min
-                  ? AppColors.surfaceVariant
-                  : AppColors.surfaceVariant,
+              color: AppColors.surfaceVariant,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(Icons.remove,
-                color: value <= min
-                    ? AppColors.textTertiary
-                    : AppColors.textSecondary),
+            child: Icon(
+              Icons.remove,
+              color: value <= min
+                  ? AppColors.textTertiary
+                  : AppColors.textSecondary,
+            ),
           ),
         ),
         Padding(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 24),
+          padding: const EdgeInsets.symmetric(
+              horizontal: 24),
           child: Text(
             label ?? '$value',
             style: const TextStyle(
@@ -1246,8 +1307,10 @@ class _StepperWidget extends StatelessWidget {
               color: AppColors.primaryLight,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.add,
-                color: AppColors.primary),
+            child: const Icon(
+              Icons.add,
+              color: AppColors.primary,
+            ),
           ),
         ),
       ],
@@ -1282,17 +1345,20 @@ class _EquipmentToggle extends StatelessWidget {
               : AppColors.surface,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color:
-                value ? AppColors.primary : AppColors.border,
+            color: value
+                ? AppColors.primary
+                : AppColors.border,
           ),
         ),
         child: Row(
           children: [
-            Icon(icon,
-                size: 16,
-                color: value
-                    ? AppColors.primary
-                    : AppColors.textTertiary),
+            Icon(
+              icon,
+              size: 16,
+              color: value
+                  ? AppColors.primary
+                  : AppColors.textTertiary,
+            ),
             const SizedBox(width: 6),
             Expanded(
               child: Text(
