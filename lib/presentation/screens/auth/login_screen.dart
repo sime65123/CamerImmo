@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_theme.dart';
+import 'widgets/social_auth_buttons.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -40,20 +41,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (mounted) _showError(e.message);
     } catch (e) {
       if (mounted) _showError('Une erreur est survenue. Réessayez.');
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _loginWithGoogle() async {
-    setState(() => _isLoading = true);
-    try {
-      await Supabase.instance.client.auth.signInWithOAuth(
-        OAuthProvider.google,
-        redirectTo: 'camerimmo://login-callback',
-      );
-    } catch (e) {
-      if (mounted) _showError('Connexion Google échouée.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -339,40 +326,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                       const SizedBox(height: 20),
 
-                      // Bouton Google
-                      SizedBox(
-                        width: double.infinity,
-                        height: 56,
-                        child: OutlinedButton(
-                          onPressed: _isLoading ? null : _loginWithGoogle,
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(
-                              color: AppColors.border,
-                              width: 1.5,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              // Logo Google
-                              _GoogleLogo(),
-                              const SizedBox(width: 12),
-                              const Text(
-                                'Continuer avec Google',
-                                style: TextStyle(
-                                  fontFamily: 'Poppins',
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w500,
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
+                      // Google / Apple
+                      SocialAuthButtons(onError: _showError),
                     ],
                   ),
                 ),
@@ -414,72 +369,4 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ),
     );
   }
-}
-
-// Logo Google custom
-class _GoogleLogo extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 22,
-      height: 22,
-      child: CustomPaint(painter: _GoogleLogoPainter()),
-    );
-  }
-}
-
-class _GoogleLogoPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2;
-
-    // Bleu
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      -0.5,
-      1.6,
-      false,
-      Paint()
-        ..color = const Color(0xFF4285F4)
-        ..strokeWidth = 3
-        ..style = PaintingStyle.stroke,
-    );
-    // Rouge
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      1.1,
-      1.2,
-      false,
-      Paint()
-        ..color = const Color(0xFFEA4335)
-        ..strokeWidth = 3
-        ..style = PaintingStyle.stroke,
-    );
-    // Jaune
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      2.3,
-      0.8,
-      false,
-      Paint()
-        ..color = const Color(0xFFFBBC05)
-        ..strokeWidth = 3
-        ..style = PaintingStyle.stroke,
-    );
-    // Vert
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      3.1,
-      0.7,
-      false,
-      Paint()
-        ..color = const Color(0xFF34A853)
-        ..strokeWidth = 3
-        ..style = PaintingStyle.stroke,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

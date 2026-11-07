@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -15,3 +18,20 @@ final authUserIdProvider = StateProvider<String?>((ref) {
   ref.onDispose(sub.cancel);
   return auth.currentUser?.id;
 });
+
+/// Fait réévaluer les redirections du routeur à chaque changement de session
+/// (connexion par mot de passe, retour de Google/Apple, déconnexion).
+class AuthRefreshNotifier extends ChangeNotifier {
+  AuthRefreshNotifier() {
+    _sub = Supabase.instance.client.auth.onAuthStateChange
+        .listen((_) => notifyListeners());
+  }
+
+  late final StreamSubscription<AuthState> _sub;
+
+  @override
+  void dispose() {
+    _sub.cancel();
+    super.dispose();
+  }
+}

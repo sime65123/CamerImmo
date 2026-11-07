@@ -66,8 +66,6 @@ class ActiveContextNotifier extends StateNotifier<String> {
 
         if (role == 'bailleur') {
           state = 'landlord';
-        } else if (role == 'locataire') {
-          state = 'tenant';
         } else {
           state = activeCtx;
         }

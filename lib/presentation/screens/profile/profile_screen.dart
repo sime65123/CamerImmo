@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../home/home_screen.dart';
+import 'widgets/account_certification.dart';
 
 // ─── Provider credit score ────────────────────────────────────────────────────
 
@@ -133,6 +134,14 @@ class ProfileScreen extends ConsumerWidget {
                   loading: () => _buildStatsSkeleton(),
                   error: (_, __) => const SizedBox.shrink(),
                   data: (stats) => _buildStats(stats),
+                ),
+              ),
+
+              // Certification du compte
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                  child: AccountCertificationCard(profile: profile),
                 ),
               ),
 
@@ -777,46 +786,7 @@ class _InfoSection extends StatelessWidget {
     );
   }
 
-  void _showCniDialog(BuildContext ctx) {
-    showDialog(
-      context: ctx,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20)),
-        title: const Text('Vérifier votre CNI',
-            style: TextStyle(
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w700)),
-        content: const Text(
-          'Pour vérifier votre identité, veuillez soumettre une photo de votre CNI (recto et verso).',
-          style: TextStyle(fontFamily: 'Poppins'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Plus tard',
-                style: TextStyle(
-                    fontFamily: 'Poppins',
-                    color: AppColors.textSecondary)),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-              elevation: 0,
-            ),
-            child: const Text('Soumettre',
-                style: TextStyle(
-                    fontFamily: 'Poppins',
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600)),
-          ),
-        ],
-      ),
-    );
-  }
+  void _showCniDialog(BuildContext ctx) => showCniVerifySheet(ctx);
 }
 
 class _InfoRow extends StatelessWidget {
