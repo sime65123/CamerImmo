@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/providers/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import 'main_shell.dart';
 
@@ -9,6 +10,7 @@ import 'main_shell.dart';
 
 final userProfileProvider =
     FutureProvider<Map<String, dynamic>?>((ref) async {
+  ref.watch(authUserIdProvider);
   final userId =
       Supabase.instance.client.auth.currentUser?.id;
   if (userId == null) return null;
@@ -22,6 +24,7 @@ final userProfileProvider =
 
 final activeLeaseProvider =
     FutureProvider<Map<String, dynamic>?>((ref) async {
+  ref.watch(authUserIdProvider);
   final userId =
       Supabase.instance.client.auth.currentUser?.id;
   if (userId == null) return null;
@@ -61,6 +64,7 @@ final recommendedPropertiesProvider = FutureProvider
 
 final landlordPropertiesProvider =
     FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  ref.watch(authUserIdProvider);
   final userId =
       Supabase.instance.client.auth.currentUser?.id;
   if (userId == null) return [];
@@ -83,6 +87,7 @@ final landlordPropertiesProvider =
 
 final landlordStatsProvider =
     FutureProvider<Map<String, dynamic>>((ref) async {
+  ref.watch(authUserIdProvider);
   final userId =
       Supabase.instance.client.auth.currentUser?.id;
   if (userId == null) return {};
@@ -1499,7 +1504,8 @@ class _LandlordPropertyCard extends StatelessWidget {
                       const SizedBox(width: 10),
                       Expanded(
                         child: ElevatedButton(
-                          onPressed: () {},
+                          onPressed: () => _showLeaseRequests(
+                              context, property['id'] as String),
                           style: ElevatedButton.styleFrom(
                             backgroundColor:
                                 AppColors.primary,
@@ -2204,6 +2210,370 @@ class _KPISkeleton extends StatelessWidget {
             color: AppColors.surfaceVariant,
             borderRadius: BorderRadius.circular(16),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Demandes de location (bailleur) ──────────────────────────────────────────
+
+void _showLeaseRequests(BuildContext context, String propertyId) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: AppColors.surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    builder: (_) => _LeaseRequestsSheet(propertyId: propertyId),
+  );
+}
+
+class _LeaseRequestsSheet extends ConsumerStatefulWidget {
+  final String propertyId;
+  const _LeaseRequestsSheet({required this.propertyId});
+
+  @override
+  ConsumerState<_LeaseRequestsSheet> createState() =>
+      _LeaseRequestsSheetState();
+}
+
+class _LeaseRequestsSheetState extends ConsumerState<_LeaseRequestsSheet> {
+  late Future<List<Map<String, dynamic>>> _future;
+  bool _isBusy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _fetchRequests();
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchRequests() async {
+    final response = await Supabase.instance.client
+        .from('leases')
+        .select('*, tenant:profiles!leases_tenant_id_fkey(full_name, phone)')
+        .eq('property_id', widget.propertyId)
+        .eq('status', 'en_attente')
+        .order('created_at', ascending: false);
+    return (response as List)
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
+  }
+
+  void _toast(String msg, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg,
+            style: const TextStyle(
+                fontFamily: 'Poppins', color: Colors.white)),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+
+  Future<void> _accept(Map<String, dynamic> req) async {
+    setState(() => _isBusy = true);
+    try {
+      final leaseId = req['id'] as String;
+      await Supabase.instance.client
+          .from('leases')
+          .update({'status': 'actif'}).eq('id', leaseId);
+      await Supabase.instance.client
+          .from('properties')
+          .update({'status': 'loue'}).eq('id', widget.propertyId);
+
+      // Les autres demandes en attente pour ce bien sont refusées
+      await Supabase.instance.client
+          .from('leases')
+          .update({'status': 'resilie'})
+          .eq('property_id', widget.propertyId)
+          .eq('status', 'en_attente')
+          .neq('id', leaseId);
+
+      ref.invalidate(landlordPropertiesProvider);
+      ref.invalidate(landlordStatsProvider);
+      if (mounted) {
+        Navigator.pop(context);
+        _toast('Demande acceptée. Le locataire peut maintenant payer.',
+            AppColors.success);
+      }
+    } catch (e) {
+      debugPrint('Accept lease error: $e');
+      if (mounted) {
+        setState(() => _isBusy = false);
+        _toast('Erreur: $e', AppColors.error);
+      }
+    }
+  }
+
+  Future<void> _reject(Map<String, dynamic> req) async {
+    setState(() => _isBusy = true);
+    try {
+      await Supabase.instance.client
+          .from('leases')
+          .update({'status': 'resilie'}).eq('id', req['id'] as String);
+      if (mounted) {
+        setState(() {
+          _isBusy = false;
+          _future = _fetchRequests();
+        });
+        _toast('Demande refusée.', AppColors.warning);
+      }
+    } catch (e) {
+      debugPrint('Reject lease error: $e');
+      if (mounted) {
+        setState(() => _isBusy = false);
+        _toast('Erreur: $e', AppColors.error);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.6,
+      maxChildSize: 0.9,
+      builder: (_, ctrl) => Column(
+        children: [
+          Container(
+            margin: const EdgeInsets.only(top: 12),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: AppColors.border,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Text(
+              'Demandes de location',
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
+          Expanded(
+            child: FutureBuilder<List<Map<String, dynamic>>>(
+              future: _future,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                      child: CircularProgressIndicator(
+                          color: AppColors.primary));
+                }
+                if (snapshot.hasError) {
+                  debugPrint('Lease requests error: ${snapshot.error}');
+                  return const Center(
+                    child: Text('Impossible de charger les demandes',
+                        style: TextStyle(fontFamily: 'Poppins')),
+                  );
+                }
+                final requests = snapshot.data ?? [];
+                if (requests.isEmpty) {
+                  return const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.inbox_outlined,
+                            size: 48, color: AppColors.textTertiary),
+                        SizedBox(height: 12),
+                        Text('Aucune demande en attente',
+                            style: TextStyle(
+                              fontFamily: 'Poppins',
+                              fontSize: 15,
+                              color: AppColors.textSecondary,
+                            )),
+                      ],
+                    ),
+                  );
+                }
+                return ListView.separated(
+                  controller: ctrl,
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                  itemCount: requests.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (context, i) => _requestCard(requests[i]),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _requestCard(Map<String, dynamic> req) {
+    final tenant = req['tenant'] as Map<String, dynamic>?;
+    final name = tenant?['full_name'] as String? ?? 'Locataire';
+    final phone = tenant?['phone'] as String? ?? '';
+    final message = req['tenant_message'] as String?;
+    final rent = (req['monthly_rent'] as num?)?.toInt() ?? 0;
+    String dateLabel = '';
+    final start = req['start_date'] as String?;
+    if (start != null) {
+      final d = DateTime.tryParse(start);
+      if (d != null) dateLabel = '${d.day}/${d.month}/${d.year}';
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.borderLight),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: const BoxDecoration(
+                  color: AppColors.primaryLight,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.person_rounded,
+                    color: AppColors.primary, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(name,
+                        style: const TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        )),
+                    if (phone.isNotEmpty)
+                      Text(phone,
+                          style: const TextStyle(
+                            fontFamily: 'Poppins',
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                          )),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              if (dateLabel.isNotEmpty)
+                _InfoTag(
+                    label: 'Emménagement : $dateLabel',
+                    color: AppColors.info),
+              _InfoTag(label: '$rent FCFA/mois', color: AppColors.success),
+            ],
+          ),
+          if (message != null && message.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceVariant,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text('"$message"',
+                  style: const TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                    fontStyle: FontStyle.italic,
+                  )),
+            ),
+          ],
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: _isBusy ? null : () => _reject(req),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.error,
+                    side: BorderSide(
+                        color: AppColors.error.withOpacity(0.5)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: const Text('Refuser',
+                      style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontWeight: FontWeight.w600)),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                flex: 2,
+                child: ElevatedButton(
+                  onPressed: _isBusy ? null : () => _accept(req),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.success,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    elevation: 0,
+                  ),
+                  child: _isBusy
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2))
+                      : const Text('Accepter',
+                          style: TextStyle(
+                              fontFamily: 'Poppins',
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoTag extends StatelessWidget {
+  final String label;
+  final Color color;
+  const _InfoTag({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontFamily: 'Poppins',
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: color,
         ),
       ),
     );

@@ -3,13 +3,17 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/providers/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
 
 // ─── Provider contexte actif ──────────────────────────────────────────────────
 
 final activeContextProvider =
-    StateNotifierProvider<ActiveContextNotifier, String>(
-        (ref) => ActiveContextNotifier());
+    StateNotifierProvider<ActiveContextNotifier, String>((ref) {
+  // Se recrée à chaque changement de compte
+  ref.watch(authUserIdProvider);
+  return ActiveContextNotifier();
+});
 
 class ActiveContextNotifier extends StateNotifier<String> {
   ActiveContextNotifier() : super('tenant') {
@@ -18,25 +22,52 @@ class ActiveContextNotifier extends StateNotifier<String> {
 
   Future<void> _loadFromSupabase() async {
     try {
-      final userId =
-          Supabase.instance.client.auth.currentUser?.id;
-      if (userId == null) return;
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) return;
 
-      final profile = await Supabase.instance.client
+      var profile = await Supabase.instance.client
           .from('profiles')
           .select('active_context, role')
-          .eq('id', userId)
+          .eq('id', user.id)
           .maybeSingle();
 
-      if (profile != null) {
+      // Le rôle choisi à l'inscription est stocké dans les métadonnées de
+      // l'utilisateur. Si le profil ne le reflète pas (trigger qui l'ignore),
+      // on le synchronise ici.
+      final metaRole = user.userMetadata?['role'] as String?;
+      final metaContext = user.userMetadata?['active_context'] as String?;
+      final dbRole = profile?['role'] as String?;
+      const validRoles = ['locataire', 'bailleur', 'les_deux'];
+
+      if (profile != null &&
+          metaRole != null &&
+          validRoles.contains(metaRole) &&
+          dbRole != metaRole) {
+        try {
+          await Supabase.instance.client.from('profiles').update({
+            'role': metaRole,
+            'active_context': metaContext ??
+                (metaRole == 'bailleur' ? 'landlord' : 'tenant'),
+          }).eq('id', user.id);
+          profile = {
+            'role': metaRole,
+            'active_context': metaContext ??
+                (metaRole == 'bailleur' ? 'landlord' : 'tenant'),
+          };
+        } catch (e) {
+          debugPrint('Sync role error: $e');
+        }
+      }
+
+      if (profile != null && mounted) {
         final activeCtx =
-            profile['active_context'] as String? ??
-                'tenant';
-        final role =
-            profile['role'] as String? ?? 'locataire';
+            profile['active_context'] as String? ?? 'tenant';
+        final role = profile['role'] as String? ?? 'locataire';
 
         if (role == 'bailleur') {
           state = 'landlord';
+        } else if (role == 'locataire') {
+          state = 'tenant';
         } else {
           state = activeCtx;
         }
@@ -49,13 +80,11 @@ class ActiveContextNotifier extends StateNotifier<String> {
   Future<void> setContext(String ctx) async {
     state = ctx;
     try {
-      final userId =
-          Supabase.instance.client.auth.currentUser?.id;
+      final userId = Supabase.instance.client.auth.currentUser?.id;
       if (userId == null) return;
       await Supabase.instance.client
           .from('profiles')
-          .update({'active_context': ctx})
-          .eq('id', userId);
+          .update({'active_context': ctx}).eq('id', userId);
     } catch (e) {
       debugPrint('Set context error: $e');
     }
@@ -71,6 +100,7 @@ final bottomNavIndexProvider =
 
 final unreadMessagesProvider =
     FutureProvider<int>((ref) async {
+  ref.watch(authUserIdProvider);
   final userId =
       Supabase.instance.client.auth.currentUser?.id;
   if (userId == null) return 0;
