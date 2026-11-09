@@ -1251,7 +1251,7 @@ class _OwnerSection extends StatelessWidget {
 
 // ─── Boutons actions bas ──────────────────────────────────────────────────────
 
-class _BottomActions extends StatelessWidget {
+class _BottomActions extends StatefulWidget {
   final String propertyId;
   final String ownerId;
   final String status;
@@ -1261,6 +1261,531 @@ class _BottomActions extends StatelessWidget {
     required this.ownerId,
     required this.status,
   });
+
+  @override
+  State<_BottomActions> createState() => _BottomActionsState();
+}
+
+class _BottomActionsState extends State<_BottomActions> {
+  bool _isLoading = false;
+  bool _leaseLoaded = false;
+  String? _leaseId;
+  String? _leaseStatus;
+
+  String? get _currentUserId =>
+      Supabase.instance.client.auth.currentUser?.id;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMyLease();
+  }
+
+  /// Bail éventuel du locataire connecté pour ce bien (le plus récent
+  /// parmi ceux qui ne sont pas refusés/résiliés).
+  Future<void> _loadMyLease() async {
+    final uid = _currentUserId;
+    if (uid == null) {
+      if (mounted) setState(() => _leaseLoaded = true);
+      return;
+    }
+    try {
+      final rows = await Supabase.instance.client
+          .from('leases')
+          .select('id, status')
+          .eq('property_id', widget.propertyId)
+          .eq('tenant_id', uid)
+          .inFilter('status', ['en_attente', 'actif'])
+          .order('created_at', ascending: false)
+          .limit(1);
+      final list = rows as List;
+      if (mounted) {
+        setState(() {
+          if (list.isNotEmpty) {
+            _leaseId = list.first['id'] as String?;
+            _leaseStatus = list.first['status'] as String?;
+          }
+          _leaseLoaded = true;
+        });
+      }
+    } catch (e) {
+      debugPrint('Load my lease error: $e');
+      if (mounted) setState(() => _leaseLoaded = true);
+    }
+  }
+
+  void _snack(String msg, Color color) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg,
+            style: const TextStyle(
+                fontFamily: 'Poppins', color: Colors.white)),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+
+  bool _isOwner() {
+    final uid = _currentUserId;
+    return uid != null && uid == widget.ownerId;
+  }
+
+  /// Retourne l'id de la conversation existante ou en crée une.
+  Future<String> _getOrCreateConversation(String uid,
+      {int landlordUnread = 0}) async {
+    final existing = await Supabase.instance.client
+        .from('conversations')
+        .select('id')
+        .eq('property_id', widget.propertyId)
+        .eq('tenant_id', uid)
+        .maybeSingle();
+    if (existing != null) return existing['id'] as String;
+
+    final created = await Supabase.instance.client
+        .from('conversations')
+        .insert({
+          'property_id': widget.propertyId,
+          'tenant_id': uid,
+          'landlord_id': widget.ownerId,
+          'tenant_unread': 0,
+          'landlord_unread': landlordUnread,
+        })
+        .select()
+        .single();
+    return (created as Map<String, dynamic>)['id'] as String;
+  }
+
+  Future<void> _handleContact() async {
+    final uid = _currentUserId;
+    if (uid == null) return;
+    if (_isOwner()) {
+      _snack('Vous ne pouvez pas vous écrire à vous-même',
+          AppColors.warning);
+      return;
+    }
+    setState(() => _isLoading = true);
+    try {
+      final convId = await _getOrCreateConversation(uid);
+      if (mounted) context.go('/chat/$convId');
+    } catch (e) {
+      debugPrint('Contact error: $e');
+      _snack('Erreur: $e', AppColors.error);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _handleRent() {
+    final uid = _currentUserId;
+    if (uid == null) return;
+    if (_isOwner()) {
+      _snack('Vous ne pouvez pas louer votre propre bien',
+          AppColors.warning);
+      return;
+    }
+    _showRentRequestSheet(uid);
+  }
+
+  void _showRentRequestSheet(String uid) {
+    final messageCtrl = TextEditingController();
+    DateTime? moveInDate;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) => Padding(
+          padding: EdgeInsets.fromLTRB(
+              24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Demande de location',
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Votre demande sera envoyée au propriétaire pour approbation. '
+                'Le paiement se fait une fois la demande acceptée.',
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Date d\'emménagement souhaitée',
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              GestureDetector(
+                onTap: () async {
+                  final date = await showDatePicker(
+                    context: ctx,
+                    initialDate:
+                        DateTime.now().add(const Duration(days: 7)),
+                    firstDate: DateTime.now(),
+                    lastDate:
+                        DateTime.now().add(const Duration(days: 365)),
+                    builder: (context, child) => Theme(
+                      data: Theme.of(context).copyWith(
+                        colorScheme: const ColorScheme.light(
+                            primary: AppColors.primary),
+                      ),
+                      child: child!,
+                    ),
+                  );
+                  if (date != null) {
+                    setModalState(() => moveInDate = date);
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceVariant,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.calendar_today_outlined,
+                          color: AppColors.textTertiary, size: 18),
+                      const SizedBox(width: 10),
+                      Text(
+                        moveInDate == null
+                            ? 'Sélectionner une date'
+                            : '${moveInDate!.day}/${moveInDate!.month}/${moveInDate!.year}',
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 14,
+                          color: moveInDate == null
+                              ? AppColors.textHint
+                              : AppColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Message au propriétaire (optionnel)',
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: messageCtrl,
+                maxLines: 3,
+                style:
+                    const TextStyle(fontFamily: 'Poppins', fontSize: 14),
+                decoration: InputDecoration(
+                  hintText:
+                      'Présentez-vous et expliquez votre situation...',
+                  hintStyle: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 13,
+                    color: AppColors.textHint,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _createLeaseRequest(
+                      uid: uid,
+                      moveInDate: moveInDate ??
+                          DateTime.now().add(const Duration(days: 7)),
+                      message: messageCtrl.text.trim(),
+                    );
+                  },
+                  child: const Text(
+                    'Envoyer la demande',
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _createLeaseRequest({
+    required String uid,
+    required DateTime moveInDate,
+    required String message,
+  }) async {
+    setState(() => _isLoading = true);
+    try {
+      final property = await Supabase.instance.client
+          .from('properties')
+          .select('monthly_rent, min_lease_months, deposit_amount')
+          .eq('id', widget.propertyId)
+          .single();
+
+      final rent = (property['monthly_rent'] as num).toInt();
+      final minLease = property['min_lease_months'] as int? ?? 12;
+      final deposit =
+          (property['deposit_amount'] as num?)?.toInt() ?? rent * 2;
+
+      final endDate = DateTime(
+          moveInDate.year, moveInDate.month + minLease, moveInDate.day);
+
+      final lease = await Supabase.instance.client
+          .from('leases')
+          .insert({
+            'property_id': widget.propertyId,
+            'tenant_id': uid,
+            'landlord_id': widget.ownerId,
+            'status': 'en_attente',
+            'start_date': moveInDate.toIso8601String(),
+            'end_date': endDate.toIso8601String(),
+            'monthly_rent': rent,
+            'payment_day': 5,
+            'deposit_amount': deposit,
+            'tenant_message': message,
+          })
+          .select('id, status')
+          .single();
+
+      // Message automatique au propriétaire (n'empêche pas la demande si ça échoue)
+      try {
+        final convId =
+            await _getOrCreateConversation(uid, landlordUnread: 1);
+        final d = moveInDate;
+        final autoMsg =
+            '🏠 Demande de location pour un emménagement le ${d.day}/${d.month}/${d.year}.'
+            '${message.isNotEmpty ? '\n\n"$message"' : ''}';
+        final now = DateTime.now().toIso8601String();
+        await Supabase.instance.client.from('messages').insert({
+          'conversation_id': convId,
+          'sender_id': uid,
+          'content': autoMsg,
+          'message_type': 'texte',
+        });
+        await Supabase.instance.client.from('conversations').update({
+          'last_message': autoMsg,
+          'last_message_at': now,
+          'updated_at': now,
+        }).eq('id', convId);
+      } catch (e) {
+        debugPrint('Auto message error: $e');
+      }
+
+      if (mounted) {
+        setState(() {
+          _leaseId = lease['id'] as String?;
+          _leaseStatus = lease['status'] as String?;
+        });
+      }
+      _snack('Demande envoyée ! Le propriétaire va vous répondre.',
+          AppColors.success);
+    } catch (e) {
+      debugPrint('Create lease error: $e');
+      _snack('Erreur: $e', AppColors.error);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Widget _buildContent() {
+    if (_isLoading || !_leaseLoaded) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(14),
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
+      );
+    }
+
+    // Bail accepté → le locataire peut payer (même si le bien est "loué")
+    if (_leaseStatus == 'actif' && _leaseId != null) {
+      return SizedBox(
+        width: double.infinity,
+        height: 52,
+        child: ElevatedButton.icon(
+          onPressed: () => context.go('/payment/$_leaseId'),
+          icon: const Icon(Icons.payments_outlined,
+              size: 18, color: Colors.white),
+          label: const Text(
+            'Payer mon loyer',
+            style: TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+            elevation: 0,
+          ),
+        ),
+      );
+    }
+
+    // Demande envoyée, en attente de réponse
+    if (_leaseStatus == 'en_attente') {
+      return Row(
+        children: [
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceVariant,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Text(
+                'Demande envoyée — en attente du propriétaire',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          OutlinedButton(
+            onPressed: _handleContact,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              side: const BorderSide(color: AppColors.primary, width: 1.5),
+              padding: const EdgeInsets.symmetric(
+                  vertical: 14, horizontal: 16),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Icon(Icons.chat_bubble_outline, size: 18),
+          ),
+        ],
+      );
+    }
+
+    if (widget.status != 'disponible') {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceVariant,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Text(
+          'Ce bien n\'est plus disponible',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontFamily: 'Poppins',
+            fontSize: 14,
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: _handleContact,
+            icon: const Icon(Icons.chat_bubble_outline, size: 16),
+            label: const Text(
+              'Contacter',
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              side: const BorderSide(color: AppColors.primary, width: 1.5),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          flex: 2,
+          child: ElevatedButton.icon(
+            onPressed: _handleRent,
+            icon: const Icon(Icons.home_outlined,
+                size: 16, color: Colors.white),
+            label: const Text(
+              'Louer ce bien',
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              elevation: 0,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1281,150 +1806,7 @@ class _BottomActions extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
-        children: [
-          // Bouton Demander visite
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: status == 'disponible'
-                  ? () {}
-                  : null,
-              icon: const Icon(
-                  Icons.calendar_today_outlined,
-                  size: 16),
-              label: const Text(
-                'Demander une visite',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                side: const BorderSide(
-                    color: AppColors.primary, width: 1.5),
-                padding: const EdgeInsets.symmetric(
-                    vertical: 14),
-                shape: RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(12)),
-              ),
-            ),
-          ),
-
-          const SizedBox(width: 12),
-
-          // Bouton Contacter — fonctionnel
-          Expanded(
-            child: ElevatedButton.icon(
-              onPressed: () async {
-                final currentUserId = Supabase
-                    .instance.client.auth.currentUser?.id;
-                if (currentUserId == null) return;
-
-                if (currentUserId == ownerId) {
-                  ScaffoldMessenger.of(context)
-                      .showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Vous ne pouvez pas vous écrire à vous-même',
-                        style: TextStyle(
-                            fontFamily: 'Poppins'),
-                      ),
-                      backgroundColor: AppColors.warning,
-                    ),
-                  );
-                  return;
-                }
-
-                try {
-                  // Chercher conversation existante
-                  final existing = await Supabase
-                      .instance.client
-                      .from('conversations')
-                      .select('id')
-                      .eq('property_id', propertyId)
-                      .eq('tenant_id', currentUserId)
-                      .maybeSingle();
-
-                  String conversationId;
-
-                  if (existing != null) {
-                    conversationId =
-                        existing['id'] as String;
-                  } else {
-                    // Créer nouvelle conversation
-                    final newConv = await Supabase
-                        .instance.client
-                        .from('conversations')
-                        .insert({
-                      'property_id': propertyId,
-                      'tenant_id': currentUserId,
-                      'landlord_id': ownerId,
-                      'tenant_unread': 0,
-                      'landlord_unread': 0,
-                    }).select().single();
-
-                    conversationId =
-                        (newConv as Map<String,
-                                dynamic>)['id']
-                            as String;
-                  }
-
-                  if (context.mounted) {
-                    context.go(
-                        '/chat/$conversationId');
-                  }
-                } catch (e) {
-                  debugPrint('Contact error: $e');
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context)
-                        .showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Erreur: $e',
-                          style: const TextStyle(
-                              fontFamily: 'Poppins',
-                              color: Colors.white),
-                        ),
-                        backgroundColor: AppColors.error,
-                        behavior:
-                            SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.circular(
-                                    12)),
-                        margin: const EdgeInsets.all(16),
-                      ),
-                    );
-                  }
-                }
-              },
-              icon: const Icon(Icons.phone_outlined,
-                  size: 16, color: Colors.white),
-              label: const Text(
-                'Contacter',
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                padding: const EdgeInsets.symmetric(
-                    vertical: 14),
-                shape: RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(12)),
-                elevation: 0,
-              ),
-            ),
-          ),
-        ],
-      ),
+      child: _buildContent(),
     );
   }
 }
