@@ -25,6 +25,7 @@ import '../screens/profile/profile_screen.dart';
 import '../screens/profile/settings_screen.dart';
 import '../screens/alerts/alerts_screen.dart';
 import '../screens/alerts/create_alert_screen.dart';
+import '../screens/maintenance/maintenance_screen.dart';
 
 part 'app_router.g.dart';
 
@@ -49,6 +50,7 @@ class AppRoutes {
   static const settings = '/settings';
   static const alerts = '/alerts';
   static const createAlert = '/create-alert';
+  static const maintenance = '/maintenance';
 }
 
 @riverpod
@@ -173,6 +175,13 @@ GoRouter appRouter(AppRouterRef ref) {
       GoRoute(
         path: AppRoutes.createAlert,
         builder: (_, __) => const CreateAlertScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.maintenance,
+        builder: (context, state) => MaintenanceScreen(
+          leaseId: state.uri.queryParameters['leaseId'],
+          propertyId: state.uri.queryParameters['propertyId'],
+        ),
       ),
     ],
   );
