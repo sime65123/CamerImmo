@@ -4,11 +4,11 @@ import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/providers/auth_provider.dart';
 import '../screens/auth/splash_screen.dart';
 import '../screens/auth/onboarding_screen.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/register_screen.dart';
-import '../screens/auth/otp_screen.dart';
 import '../screens/home/main_shell.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/search/search_screen.dart';
@@ -34,7 +34,6 @@ class AppRoutes {
   static const onboarding = '/onboarding';
   static const login = '/login';
   static const register = '/register';
-  static const otp = '/otp';
   static const home = '/home';
   static const search = '/search';
   static const filters = '/filters';
@@ -55,20 +54,26 @@ class AppRoutes {
 @riverpod
 GoRouter appRouter(AppRouterRef ref) {
   final supabase = Supabase.instance.client;
+  final authRefresh = AuthRefreshNotifier();
+  ref.onDispose(authRefresh.dispose);
 
   return GoRouter(
     initialLocation: AppRoutes.splash,
     debugLogDiagnostics: true,
+    refreshListenable: authRefresh,
     redirect: (context, state) {
       final isLoggedIn = supabase.auth.currentUser != null;
-      final isAuthRoute = state.matchedLocation == AppRoutes.login ||
-          state.matchedLocation == AppRoutes.register ||
-          state.matchedLocation == AppRoutes.otp ||
-          state.matchedLocation == AppRoutes.onboarding ||
-          state.matchedLocation == AppRoutes.splash;
+      final location = state.matchedLocation;
+      final isAuthRoute = location == AppRoutes.login ||
+          location == AppRoutes.register ||
+          location == AppRoutes.onboarding ||
+          location == AppRoutes.splash;
 
       if (!isLoggedIn && !isAuthRoute) return AppRoutes.login;
-      if (isLoggedIn && state.matchedLocation == AppRoutes.login) {
+      // Connecté (mot de passe, Google, Apple) : plus de raison de rester
+      // sur la connexion ou l'inscription.
+      if (isLoggedIn &&
+          (location == AppRoutes.login || location == AppRoutes.register)) {
         return AppRoutes.home;
       }
       return null;
@@ -89,13 +94,6 @@ GoRouter appRouter(AppRouterRef ref) {
       GoRoute(
         path: AppRoutes.register,
         builder: (_, __) => const RegisterScreen(),
-      ),
-      GoRoute(
-        path: AppRoutes.otp,
-        builder: (context, state) {
-          final phone = state.uri.queryParameters['phone'] ?? '';
-          return OtpScreen(phone: phone);
-        },
       ),
       // Shell principal avec Bottom Navigation
       ShellRoute(

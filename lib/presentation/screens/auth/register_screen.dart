@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
+import 'widgets/social_auth_buttons.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -105,7 +106,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       debugPrint('Phone: $phone');
       debugPrint('Role: $_selectedRole');
 
-      final response = await Supabase.instance.client.auth.signUp(
+      final auth = Supabase.instance.client.auth;
+      final response = await auth.signUp(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
         data: {
@@ -114,23 +116,38 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           'role': _selectedRole,
           'active_context': activeContext,
         },
-        emailRedirectTo: 'camerimmo://email-confirmed',
       );
 
-      debugPrint('=== RÉPONSE SUPABASE ===');
-      debugPrint('User: ${response.user}');
-      debugPrint('User ID: ${response.user?.id}');
-      debugPrint('Session: ${response.session}');
-
       if (response.user == null) {
-        debugPrint('ERREUR: user est null');
         throw Exception('Échec de la création du compte');
       }
 
-      debugPrint('=== SUCCÈS - Navigation vers OTP ===');
+      // Cas normal : la confirmation par email est désactivée côté Supabase,
+      // la session est ouverte tout de suite et le routeur envoie vers /home.
+      // Sinon (confirmation encore activée) on tente une connexion directe.
+      if (response.session == null) {
+        try {
+          await auth.signInWithPassword(
+            email: _emailController.text.trim(),
+            password: _passwordController.text.trim(),
+          );
+        } on AuthException catch (e) {
+          if (e.message.toLowerCase().contains('not confirmed')) {
+            if (mounted) {
+              _showError(
+                  'Compte créé, mais la confirmation par email est encore '
+                  'activée sur le serveur. Désactivez « Confirm email » '
+                  'dans Supabase (Authentication > Providers > Email).');
+              context.go('/login');
+            }
+            return;
+          }
+          rethrow;
+        }
+      }
 
       if (!mounted) return;
-      context.go('/otp?phone=${Uri.encodeComponent(phone)}');
+      context.go('/home');
 
     } on AuthException catch (e) {
       debugPrint('=== AUTH EXCEPTION ===');
@@ -613,6 +630,27 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ],
               ),
             ),
+
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                const Expanded(child: Divider(color: AppColors.border)),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Text(
+                    'ou',
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 13,
+                      color: AppColors.textTertiary,
+                    ),
+                  ),
+                ),
+                const Expanded(child: Divider(color: AppColors.border)),
+              ],
+            ),
+            const SizedBox(height: 16),
+            SocialAuthButtons(onError: _showError),
 
             const SizedBox(height: 32),
             ..._buildFeatures(),
