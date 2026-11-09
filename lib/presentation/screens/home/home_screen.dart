@@ -829,6 +829,23 @@ class _ActiveLeaseCard extends ConsumerWidget {
                         ),
                       ),
                     ),
+                    const SizedBox(height: 4),
+                    Center(
+                      child: TextButton.icon(
+                        onPressed: () => context
+                            .push('/maintenance?leaseId=${lease['id']}'),
+                        icon: const Icon(Icons.build_outlined,
+                            size: 16, color: Colors.white70),
+                        label: const Text(
+                          'Signaler un problème',
+                          style: TextStyle(
+                            fontFamily: 'Poppins',
+                            fontSize: 13,
+                            color: Colors.white70,
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -1534,7 +1551,8 @@ class _LandlordPropertyCard extends StatelessWidget {
                     children: [
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: () {},
+                          onPressed: () => context.push(
+                              '/maintenance?propertyId=${property['id']}'),
                           style:
                               OutlinedButton.styleFrom(
                             side: const BorderSide(
@@ -1547,7 +1565,7 @@ class _LandlordPropertyCard extends StatelessWidget {
                                 const EdgeInsets.symmetric(
                                     vertical: 10),
                           ),
-                          child: const Text('Détails Bail',
+                          child: const Text('Maintenance',
                               style: TextStyle(
                                 fontFamily: 'Poppins',
                                 fontSize: 13,
@@ -2241,12 +2259,57 @@ class _LeaseRequestsSheet extends ConsumerStatefulWidget {
 
 class _LeaseRequestsSheetState extends ConsumerState<_LeaseRequestsSheet> {
   late Future<List<Map<String, dynamic>>> _future;
+  late Future<List<Map<String, dynamic>>> _visitsFuture;
+  late Future<List<List<Map<String, dynamic>>>> _all;
   bool _isBusy = false;
 
   @override
   void initState() {
     super.initState();
+    _reload();
+  }
+
+  void _reload() {
     _future = _fetchRequests();
+    _visitsFuture = _fetchVisits();
+    _all = Future.wait([_future, _visitsFuture]);
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchVisits() async {
+    final response = await Supabase.instance.client
+        .from('visit_requests')
+        .select(
+            '*, tenant:profiles!visit_requests_tenant_id_fkey(full_name, phone)')
+        .eq('property_id', widget.propertyId)
+        .eq('status', 'en_attente')
+        .order('requested_date', ascending: true);
+    return (response as List)
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
+  }
+
+  Future<void> _answerVisit(Map<String, dynamic> v, bool accept) async {
+    setState(() => _isBusy = true);
+    try {
+      await Supabase.instance.client
+          .from('visit_requests')
+          .update({'status': accept ? 'confirmee' : 'refusee'})
+          .eq('id', v['id'] as String);
+      if (mounted) {
+        setState(() {
+          _isBusy = false;
+          _reload();
+        });
+        _toast(accept ? 'Visite confirmée.' : 'Visite refusée.',
+            accept ? AppColors.success : AppColors.warning);
+      }
+    } catch (e) {
+      debugPrint('Answer visit error: $e');
+      if (mounted) {
+        setState(() => _isBusy = false);
+        _toast('Erreur: $e', AppColors.error);
+      }
+    }
   }
 
   Future<List<Map<String, dynamic>>> _fetchRequests() async {
@@ -2320,7 +2383,7 @@ class _LeaseRequestsSheetState extends ConsumerState<_LeaseRequestsSheet> {
       if (mounted) {
         setState(() {
           _isBusy = false;
-          _future = _fetchRequests();
+          _reload();
         });
         _toast('Demande refusée.', AppColors.warning);
       }
@@ -2353,7 +2416,7 @@ class _LeaseRequestsSheetState extends ConsumerState<_LeaseRequestsSheet> {
           const Padding(
             padding: EdgeInsets.all(16),
             child: Text(
-              'Demandes de location',
+              'Demandes',
               style: TextStyle(
                 fontFamily: 'Poppins',
                 fontSize: 18,
@@ -2363,8 +2426,8 @@ class _LeaseRequestsSheetState extends ConsumerState<_LeaseRequestsSheet> {
             ),
           ),
           Expanded(
-            child: FutureBuilder<List<Map<String, dynamic>>>(
-              future: _future,
+            child: FutureBuilder<List<List<Map<String, dynamic>>>>(
+              future: _all,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(
@@ -2372,14 +2435,15 @@ class _LeaseRequestsSheetState extends ConsumerState<_LeaseRequestsSheet> {
                           color: AppColors.primary));
                 }
                 if (snapshot.hasError) {
-                  debugPrint('Lease requests error: ${snapshot.error}');
+                  debugPrint('Requests error: ${snapshot.error}');
                   return const Center(
                     child: Text('Impossible de charger les demandes',
                         style: TextStyle(fontFamily: 'Poppins')),
                   );
                 }
-                final requests = snapshot.data ?? [];
-                if (requests.isEmpty) {
+                final requests = snapshot.data![0];
+                final visits = snapshot.data![1];
+                if (requests.isEmpty && visits.isEmpty) {
                   return const Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -2397,15 +2461,137 @@ class _LeaseRequestsSheetState extends ConsumerState<_LeaseRequestsSheet> {
                     ),
                   );
                 }
-                return ListView.separated(
+                Widget header(String t) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10, top: 4),
+                      child: Text(t,
+                          style: const TextStyle(
+                            fontFamily: 'Poppins',
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textSecondary,
+                            letterSpacing: 0.5,
+                          )),
+                    );
+                return ListView(
                   controller: ctrl,
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                  itemCount: requests.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (context, i) => _requestCard(requests[i]),
+                  children: [
+                    if (requests.isNotEmpty) ...[
+                      header('DEMANDES DE LOCATION'),
+                      for (final r in requests) ...[
+                        _requestCard(r),
+                        const SizedBox(height: 12),
+                      ],
+                    ],
+                    if (visits.isNotEmpty) ...[
+                      header('DEMANDES DE VISITE'),
+                      for (final v in visits) ...[
+                        _visitCard(v),
+                        const SizedBox(height: 12),
+                      ],
+                    ],
+                  ],
                 );
               },
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _visitCard(Map<String, dynamic> v) {
+    final tenant = v['tenant'] as Map<String, dynamic>?;
+    final name = tenant?['full_name'] as String? ?? 'Locataire';
+    final phone = tenant?['phone'] as String? ?? '';
+    final message = v['message'] as String?;
+    var when = '';
+    final d = DateTime.tryParse(v['requested_date']?.toString() ?? '');
+    if (d != null) {
+      when = '${d.day}/${d.month}/${d.year}';
+    }
+    final time = v['requested_time'] as String?;
+    if (time != null && time.isNotEmpty) when = '$when à $time';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.borderLight),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.event_outlined,
+                  color: AppColors.accent, size: 22),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(when,
+                    style: const TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    )),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(phone.isEmpty ? name : '$name · $phone',
+              style: const TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              )),
+          if (message != null && message.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text('"$message"',
+                style: const TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 13,
+                  fontStyle: FontStyle.italic,
+                  color: AppColors.textSecondary,
+                )),
+          ],
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: _isBusy ? null : () => _answerVisit(v, false),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.error,
+                    side: BorderSide(color: AppColors.error.withOpacity(0.5)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: const Text('Refuser',
+                      style: TextStyle(
+                          fontFamily: 'Poppins', fontWeight: FontWeight.w600)),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                flex: 2,
+                child: ElevatedButton(
+                  onPressed: _isBusy ? null : () => _answerVisit(v, true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.success,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: const Text('Confirmer',
+                      style: TextStyle(
+                          fontFamily: 'Poppins',
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600)),
+                ),
+              ),
+            ],
           ),
         ],
       ),

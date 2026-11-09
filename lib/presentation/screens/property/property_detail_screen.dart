@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_theme.dart';
+import 'visit_request_sheet.dart';
 
 // ─── Provider ────────────────────────────────────────────────────────────────
 
@@ -1735,51 +1736,68 @@ class _BottomActionsState extends State<_BottomActions> {
       );
     }
 
-    return Row(
-      children: [
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: _handleContact,
-            icon: const Icon(Icons.chat_bubble_outline, size: 16),
-            label: const Text(
-              'Contacter',
-              style: TextStyle(
+    Widget outlined(String label, VoidCallback onTap) => OutlinedButton(
+          onPressed: onTap,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.primary,
+            side: const BorderSide(color: AppColors.primary, width: 1.5),
+            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+          ),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              label,
+              style: const TextStyle(
                 fontFamily: 'Poppins',
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
             ),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.primary,
-              side: const BorderSide(color: AppColors.primary, width: 1.5),
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
           ),
-        ),
-        const SizedBox(width: 12),
+        );
+
+    return Row(
+      children: [
+        Expanded(flex: 3, child: outlined('Contacter', _handleContact)),
+        const SizedBox(width: 8),
         Expanded(
-          flex: 2,
-          child: ElevatedButton.icon(
+          flex: 3,
+          child: outlined('Visiter', () {
+            final uid = _currentUserId;
+            if (uid == null) return;
+            if (_isOwner()) {
+              _snack('C\'est votre propre bien', AppColors.warning);
+              return;
+            }
+            showVisitRequestSheet(context,
+                propertyId: widget.propertyId, ownerId: widget.ownerId);
+          }),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          flex: 4,
+          child: ElevatedButton(
             onPressed: _handleRent,
-            icon: const Icon(Icons.home_outlined,
-                size: 16, color: Colors.white),
-            label: const Text(
-              'Louer ce bien',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
-            ),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
-              padding: const EdgeInsets.symmetric(vertical: 14),
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
               elevation: 0,
+            ),
+            child: const FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                'Louer ce bien',
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
             ),
           ),
         ),

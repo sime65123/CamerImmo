@@ -42,7 +42,7 @@ message et l'utilisateur peut certifier son numéro plus tard.
 
 ## 6. SQL
 Exécuter dans l'ordre `supabase/migrations/001_lease_flow.sql` puis
-`002_account_certification.sql`. La 002 crée le bucket privé
+`002_account_certification.sql`, puis `003_visits_maintenance.sql` (visites et maintenance). La 002 crée le bucket privé
 `identity-documents` et empêche un utilisateur de se marquer lui-même comme
 vérifié. Pour valider une CNI : mettre `cni_status = 'verified'` et
 `cni_verified = true` sur son profil depuis le SQL Editor.
