@@ -170,7 +170,7 @@ class _PaymentConfirmationScreenState
                   color: AppColors.surfaceVariant,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child:  Icon(
                   Icons.close,
                   size: 18,
                   color: AppColors.textSecondary,
@@ -229,7 +229,7 @@ class _PaymentConfirmationScreenState
           const SizedBox(height: 24),
 
           // Titre
-          const Text(
+           Text(
             'Paiement effectué !',
             style: TextStyle(
               fontFamily: 'Poppins',
@@ -362,7 +362,7 @@ class _PaymentConfirmationScreenState
                 ),
                 // Barre de progression séquestre
                 const SizedBox(height: 16),
-                const Divider(color: AppColors.borderLight),
+                 Divider(color: AppColors.borderLight),
                 const SizedBox(height: 16),
                 Row(
                   children: [
@@ -438,7 +438,7 @@ class _PaymentConfirmationScreenState
                         Text(
                           property['title'] as String? ??
                               'Mon logement',
-                          style: const TextStyle(
+                          style:  TextStyle(
                             fontFamily: 'Poppins',
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
@@ -503,7 +503,7 @@ class _PaymentConfirmationScreenState
               ),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.primary,
-                side: const BorderSide(
+                side:  BorderSide(
                   color: AppColors.border,
                 ),
                 shape: RoundedRectangleBorder(
@@ -566,7 +566,7 @@ class _TransactionRow extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style:  TextStyle(
             fontFamily: 'Poppins',
             fontSize: 14,
             color: AppColors.textSecondary,

@@ -104,7 +104,7 @@ class _SocialButton extends StatelessWidget {
       child: OutlinedButton(
         onPressed: enabled ? onPressed : null,
         style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: AppColors.border, width: 1.5),
+          side:  BorderSide(color: AppColors.border, width: 1.5),
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         ),
@@ -121,7 +121,7 @@ class _SocialButton extends StatelessWidget {
                   const SizedBox(width: 12),
                   Text(
                     label,
-                    style: const TextStyle(
+                    style:  TextStyle(
                       fontFamily: 'Poppins',
                       fontSize: 15,
                       fontWeight: FontWeight.w500,

@@ -98,7 +98,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 const SizedBox(height: 28),
 
                 // Titre
-                const Text(
+                 Text(
                   'Bon retour !',
                   style: TextStyle(
                     fontFamily: 'Poppins',
@@ -139,7 +139,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Email
-                      const Text(
+                       Text(
                         'Adresse e-mail',
                         style: TextStyle(
                           fontFamily: 'Poppins',
@@ -152,7 +152,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       TextFormField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
-                        style: const TextStyle(
+                        style:  TextStyle(
                           fontFamily: 'Poppins',
                           fontSize: 14,
                           color: AppColors.textPrimary,
@@ -182,7 +182,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
+                           Text(
                             'Mot de passe',
                             style: TextStyle(
                               fontFamily: 'Poppins',
@@ -217,7 +217,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       TextFormField(
                         controller: _passwordController,
                         obscureText: _obscurePassword,
-                        style: const TextStyle(
+                        style:  TextStyle(
                           fontFamily: 'Poppins',
                           fontSize: 14,
                           color: AppColors.textPrimary,

@@ -1,21 +1,24 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
+  /// Mis à jour par CamerImmoApp avant chaque rebuild (mode sombre).
+  static bool isDark = false;
+
   static const Color primary = Color(0xFF1D9E75);
   static const Color primaryDark = Color(0xFF0F6E56);
-  static const Color primaryLight = Color(0xFFE8F5F0);
-  static const Color primaryLighter = Color(0xFFF0FAF6);
+  static Color get primaryLight => isDark ? const Color(0xFF12372D) : const Color(0xFFE8F5F0);
+  static Color get primaryLighter => isDark ? const Color(0xFF0F2B24) : const Color(0xFFF0FAF6);
   static const Color accent = Color(0xFFF59E0B);
   static const Color accentLight = Color(0xFFFEF3C7);
-  static const Color background = Color(0xFFF8F9FA);
-  static const Color surface = Color(0xFFFFFFFF);
-  static const Color surfaceVariant = Color(0xFFF1F3F4);
-  static const Color textPrimary = Color(0xFF1A1A2E);
-  static const Color textSecondary = Color(0xFF6B7280);
-  static const Color textTertiary = Color(0xFF9CA3AF);
-  static const Color textHint = Color(0xFFD1D5DB);
-  static const Color border = Color(0xFFE5E7EB);
-  static const Color borderLight = Color(0xFFF3F4F6);
+  static Color get background => isDark ? const Color(0xFF0F172A) : const Color(0xFFF8F9FA);
+  static Color get surface => isDark ? const Color(0xFF1E293B) : const Color(0xFFFFFFFF);
+  static Color get surfaceVariant => isDark ? const Color(0xFF334155) : const Color(0xFFF1F3F4);
+  static Color get textPrimary => isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1A1A2E);
+  static Color get textSecondary => isDark ? const Color(0xFF94A3B8) : const Color(0xFF6B7280);
+  static Color get textTertiary => isDark ? const Color(0xFF64748B) : const Color(0xFF9CA3AF);
+  static Color get textHint => isDark ? const Color(0xFF475569) : const Color(0xFFD1D5DB);
+  static Color get border => isDark ? const Color(0xFF475569) : const Color(0xFFE5E7EB);
+  static Color get borderLight => isDark ? const Color(0xFF334155) : const Color(0xFFF3F4F6);
   static const Color success = Color(0xFF10B981);
   static const Color successLight = Color(0xFFD1FAE5);
   static const Color error = Color(0xFFEF4444);
@@ -57,7 +60,7 @@ class AppTheme {
         error: AppColors.error,
       ),
       scaffoldBackgroundColor: AppColors.background,
-      textTheme: const TextTheme(
+      textTheme:  TextTheme(
         displayLarge: TextStyle(
           fontFamily: _fontFamily,
           fontSize: 32,
@@ -125,7 +128,7 @@ class AppTheme {
           color: AppColors.surface,
         ),
       ),
-      appBarTheme: const AppBarTheme(
+      appBarTheme:  AppBarTheme(
         backgroundColor: AppColors.primary,
         foregroundColor: AppColors.surface,
         elevation: 0,
@@ -207,7 +210,7 @@ class AppTheme {
           horizontal: 16,
           vertical: 16,
         ),
-        hintStyle: const TextStyle(
+        hintStyle:  TextStyle(
           fontFamily: _fontFamily,
           fontSize: 14,
           color: AppColors.textHint,
@@ -221,7 +224,7 @@ class AppTheme {
         ),
         margin: EdgeInsets.zero,
       ),
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      bottomNavigationBarTheme:  BottomNavigationBarThemeData(
         backgroundColor: AppColors.surface,
         selectedItemColor: AppColors.primary,
         unselectedItemColor: AppColors.textTertiary,
@@ -250,7 +253,7 @@ class AppTheme {
           borderRadius: BorderRadius.circular(20),
         ),
       ),
-      dividerTheme: const DividerThemeData(
+      dividerTheme:  DividerThemeData(
         color: AppColors.borderLight,
         thickness: 1,
         space: 1,

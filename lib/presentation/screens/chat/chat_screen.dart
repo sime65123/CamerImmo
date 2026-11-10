@@ -684,7 +684,7 @@ class _PropertyContextCard extends StatelessWidget {
 
     return GestureDetector(
       onTap: () =>
-          context.go('/property/${property['id']}'),
+          context.push('/property/${property['id']}'),
       child: Container(
         margin:
             const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -734,7 +734,7 @@ class _PropertyContextCard extends StatelessWidget {
                     width: 52,
                     height: 52,
                     color: AppColors.surfaceVariant,
-                    child: const Icon(
+                    child:  Icon(
                         Icons.home_rounded,
                         color: AppColors.border),
                   ),
@@ -748,7 +748,7 @@ class _PropertyContextCard extends StatelessWidget {
                 children: [
                   Text(
                     property['title'] as String? ?? '',
-                    style: const TextStyle(
+                    style:  TextStyle(
                       fontFamily: 'Poppins',
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
@@ -759,7 +759,7 @@ class _PropertyContextCard extends StatelessWidget {
                   ),
                   Text(
                     '$rentFormatted FCFA / mois',
-                    style: const TextStyle(
+                    style:  TextStyle(
                       fontFamily: 'Poppins',
                       fontSize: 12,
                       color: AppColors.textSecondary,
@@ -768,7 +768,7 @@ class _PropertyContextCard extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right,
+             Icon(Icons.chevron_right,
                 color: AppColors.textTertiary,
                 size: 20),
           ],
@@ -941,7 +941,7 @@ class _DateSeparator extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 16),
       child: Row(
         children: [
-          const Expanded(
+           Expanded(
               child:
                   Divider(color: AppColors.borderLight)),
           Padding(
@@ -956,7 +956,7 @@ class _DateSeparator extends StatelessWidget {
               ),
               child: Text(
                 label,
-                style: const TextStyle(
+                style:  TextStyle(
                   fontFamily: 'Poppins',
                   fontSize: 11,
                   color: AppColors.textTertiary,
@@ -966,7 +966,7 @@ class _DateSeparator extends StatelessWidget {
               ),
             ),
           ),
-          const Expanded(
+           Expanded(
               child:
                   Divider(color: AppColors.borderLight)),
         ],
@@ -1084,7 +1084,7 @@ class _MessageInput extends StatelessWidget {
                 color: AppColors.surfaceVariant,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.add,
+              child:  Icon(Icons.add,
                   color: AppColors.textSecondary,
                   size: 22),
             ),
@@ -1104,7 +1104,7 @@ class _MessageInput extends StatelessWidget {
                 controller: controller,
                 maxLines: null,
                 keyboardType: TextInputType.multiline,
-                style: const TextStyle(
+                style:  TextStyle(
                   fontFamily: 'Poppins',
                   fontSize: 14,
                   color: AppColors.textPrimary,
@@ -1137,7 +1137,7 @@ class _MessageInput extends StatelessWidget {
                 color: AppColors.surfaceVariant,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
+              child:  Icon(
                   Icons.camera_alt_outlined,
                   color: AppColors.textSecondary,
                   size: 20),
@@ -1195,7 +1195,7 @@ class _EmptyChat extends StatelessWidget {
               color: AppColors.surfaceVariant,
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Text(
+            child:  Text(
               'CONVERSATION DÉMARRÉE',
               style: TextStyle(
                 fontFamily: 'Poppins',
@@ -1254,7 +1254,7 @@ class _AttachOption extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             label,
-            style: const TextStyle(
+            style:  TextStyle(
               fontFamily: 'Poppins',
               fontSize: 12,
               color: AppColors.textSecondary,

@@ -1,3 +1,4 @@
+import '../../../core/utils/nav.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -90,7 +91,7 @@ class _PropertyDetailScreenState
               leading: IconButton(
                 icon: const Icon(Icons.arrow_back,
                     color: Colors.white),
-                onPressed: () => context.pop(),
+                onPressed: () => context.safePop(),
               ),
             ),
             body: const Center(
@@ -163,7 +164,7 @@ class _PropertyDetailScreenState
                                 Text(
                                   property['title'] as String? ??
                                       '',
-                                  style: const TextStyle(
+                                  style:  TextStyle(
                                     fontFamily: 'Poppins',
                                     fontSize: 22,
                                     fontWeight: FontWeight.w700,
@@ -176,7 +177,7 @@ class _PropertyDetailScreenState
                                 // Localisation
                                 Row(
                                   children: [
-                                    const Icon(
+                                     Icon(
                                       Icons.location_on_outlined,
                                       size: 16,
                                       color: AppColors.textTertiary,
@@ -184,7 +185,7 @@ class _PropertyDetailScreenState
                                     const SizedBox(width: 4),
                                     Text(
                                       '${property['neighborhood'] ?? ''}, ${property['city'] ?? ''}',
-                                      style: const TextStyle(
+                                      style:  TextStyle(
                                         fontFamily: 'Poppins',
                                         fontSize: 14,
                                         color: AppColors.textSecondary,
@@ -302,7 +303,7 @@ class _PropertyDetailScreenState
           child: imageUrls.isEmpty
               ? Container(
                   color: AppColors.surfaceVariant,
-                  child: const Center(
+                  child:  Center(
                     child: Icon(
                       Icons.home_rounded,
                       size: 64,
@@ -322,7 +323,7 @@ class _PropertyDetailScreenState
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => Container(
                         color: AppColors.surfaceVariant,
-                        child: const Icon(
+                        child:  Icon(
                           Icons.broken_image_outlined,
                           size: 48,
                           color: AppColors.border,
@@ -419,7 +420,7 @@ class _PropertyDetailScreenState
               children: [
                 _GalleryButton(
                   icon: Icons.arrow_back,
-                  onTap: () => context.pop(),
+                  onTap: () => context.safePop(),
                 ),
                 Row(
                   children: [
@@ -541,7 +542,7 @@ class _PriceCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 4),
-              const Padding(
+               Padding(
                 padding: EdgeInsets.only(bottom: 4),
                 child: Text(
                   '/mois',
@@ -558,7 +559,7 @@ class _PriceCard extends StatelessWidget {
             const SizedBox(height: 6),
             Row(
               children: [
-                const Icon(
+                 Icon(
                   Icons.info_outline,
                   size: 14,
                   color: AppColors.textTertiary,
@@ -566,7 +567,7 @@ class _PriceCard extends StatelessWidget {
                 const SizedBox(width: 6),
                 Text(
                   'Caution : ${formatPrice(deposit)} FCFA',
-                  style: const TextStyle(
+                  style:  TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 13,
                     color: AppColors.textSecondary,
@@ -584,7 +585,7 @@ class _PriceCard extends StatelessWidget {
                 mainAxisAlignment:
                     MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                   Text(
                     'Matching score',
                     style: TextStyle(
                       fontFamily: 'Poppins',
@@ -693,7 +694,7 @@ class _QuickInfoGrid extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 item['label'] as String,
-                style: const TextStyle(
+                style:  TextStyle(
                   fontFamily: 'Poppins',
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
@@ -728,7 +729,7 @@ class _DescriptionSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+         Text(
           'Description',
           style: TextStyle(
             fontFamily: 'Poppins',
@@ -740,7 +741,7 @@ class _DescriptionSection extends StatelessWidget {
         const SizedBox(height: 10),
         Text(
           description,
-          style: const TextStyle(
+          style:  TextStyle(
             fontFamily: 'Poppins',
             fontSize: 14,
             color: AppColors.textSecondary,
@@ -839,7 +840,7 @@ class _EquipmentsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+         Text(
           'Équipements',
           style: TextStyle(
             fontFamily: 'Poppins',
@@ -880,7 +881,7 @@ class _EquipmentsSection extends StatelessWidget {
                 const SizedBox(width: 8),
                 Text(
                   eq['label'] as String,
-                  style: const TextStyle(
+                  style:  TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 13,
                     color: AppColors.textPrimary,
@@ -912,7 +913,7 @@ class _LocationSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+         Text(
           'Emplacement',
           style: TextStyle(
             fontFamily: 'Poppins',
@@ -1004,7 +1005,7 @@ class _LocationSection extends StatelessWidget {
                         const SizedBox(width: 4),
                         Text(
                           '$neighborhood, $city',
-                          style: const TextStyle(
+                          style:  TextStyle(
                             fontFamily: 'Poppins',
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -1094,7 +1095,7 @@ class _OwnerSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+         Text(
           'Le propriétaire',
           style: TextStyle(
             fontFamily: 'Poppins',
@@ -1138,14 +1139,14 @@ class _OwnerSection extends StatelessWidget {
                               avatarUrl,
                               fit: BoxFit.cover,
                               errorBuilder: (_, __, ___) =>
-                                  const Icon(
+                                   Icon(
                                 Icons.person_rounded,
                                 color: AppColors.textTertiary,
                                 size: 28,
                               ),
                             ),
                           )
-                        : const Icon(
+                        :  Icon(
                             Icons.person_rounded,
                             color: AppColors.textTertiary,
                             size: 28,
@@ -1183,7 +1184,7 @@ class _OwnerSection extends StatelessWidget {
                       children: [
                         Text(
                           name,
-                          style: const TextStyle(
+                          style:  TextStyle(
                             fontFamily: 'Poppins',
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
@@ -1213,7 +1214,7 @@ class _OwnerSection extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       'Répond $responseTimeLabel · $responseRate% réponses',
-                      style: const TextStyle(
+                      style:  TextStyle(
                         fontFamily: 'Poppins',
                         fontSize: 11,
                         color: AppColors.textTertiary,
@@ -1422,7 +1423,7 @@ class _BottomActionsState extends State<_BottomActions> {
                 ),
               ),
               const SizedBox(height: 20),
-              const Text(
+               Text(
                 'Demande de location',
                 style: TextStyle(
                   fontFamily: 'Poppins',
@@ -1432,7 +1433,7 @@ class _BottomActionsState extends State<_BottomActions> {
                 ),
               ),
               const SizedBox(height: 6),
-              const Text(
+               Text(
                 'Votre demande sera envoyée au propriétaire pour approbation. '
                 'Le paiement se fait une fois la demande acceptée.',
                 style: TextStyle(
@@ -1442,7 +1443,7 @@ class _BottomActionsState extends State<_BottomActions> {
                 ),
               ),
               const SizedBox(height: 20),
-              const Text(
+               Text(
                 'Date d\'emménagement souhaitée',
                 style: TextStyle(
                   fontFamily: 'Poppins',
@@ -1482,7 +1483,7 @@ class _BottomActionsState extends State<_BottomActions> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.calendar_today_outlined,
+                       Icon(Icons.calendar_today_outlined,
                           color: AppColors.textTertiary, size: 18),
                       const SizedBox(width: 10),
                       Text(
@@ -1502,7 +1503,7 @@ class _BottomActionsState extends State<_BottomActions> {
                 ),
               ),
               const SizedBox(height: 16),
-              const Text(
+               Text(
                 'Message au propriétaire (optionnel)',
                 style: TextStyle(
                   fontFamily: 'Poppins',
@@ -1686,7 +1687,7 @@ class _BottomActionsState extends State<_BottomActions> {
                 color: AppColors.surfaceVariant,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Text(
+              child:  Text(
                 'Demande envoyée — en attente du propriétaire',
                 textAlign: TextAlign.center,
                 style: TextStyle(
@@ -1723,7 +1724,7 @@ class _BottomActionsState extends State<_BottomActions> {
           color: AppColors.surfaceVariant,
           borderRadius: BorderRadius.circular(12),
         ),
-        child: const Text(
+        child:  Text(
           'Ce bien n\'est plus disponible',
           textAlign: TextAlign.center,
           style: TextStyle(

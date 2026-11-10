@@ -119,7 +119,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     mainAxisAlignment:
                         MainAxisAlignment.center,
                     children: [
-                      const Icon(
+                       Icon(
                         Icons.error_outline,
                         size: 48,
                         color: AppColors.textTertiary,
@@ -168,7 +168,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                         children: [
                           Text(
                             '${filtered.length} bien${filtered.length > 1 ? 's' : ''} trouvé${filtered.length > 1 ? 's' : ''}',
-                            style: const TextStyle(
+                            style:  TextStyle(
                               fontFamily: 'Poppins',
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
@@ -287,26 +287,26 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                         controller: _searchController,
                         onChanged: (val) =>
                             setState(() => _searchQuery = val),
-                        style: const TextStyle(
+                        style:  TextStyle(
                           fontFamily: 'Poppins',
                           fontSize: 14,
                           color: AppColors.textPrimary,
                         ),
                         decoration: InputDecoration(
                           hintText: 'Bastos, Yaoundé...',
-                          hintStyle: const TextStyle(
+                          hintStyle:  TextStyle(
                             fontFamily: 'Poppins',
                             fontSize: 14,
                             color: AppColors.textHint,
                           ),
-                          prefixIcon: const Icon(
+                          prefixIcon:  Icon(
                             Icons.search,
                             color: AppColors.textTertiary,
                             size: 20,
                           ),
                           suffixIcon: _searchQuery.isNotEmpty
                               ? IconButton(
-                                  icon: const Icon(
+                                  icon:  Icon(
                                     Icons.clear,
                                     size: 18,
                                     color: AppColors.textTertiary,
@@ -545,7 +545,7 @@ class _SearchPropertyCardState
     final isFurnished = p['is_furnished'] as bool? ?? false;
 
     return GestureDetector(
-      onTap: () => context.go('/property/${p['id']}'),
+      onTap: () => context.push('/property/${p['id']}'),
       child: Container(
         decoration: BoxDecoration(
           color: AppColors.surface,
@@ -689,7 +689,7 @@ class _SearchPropertyCardState
                           children: [
                             Text(
                               p['title'] as String? ?? '',
-                              style: const TextStyle(
+                              style:  TextStyle(
                                 fontFamily: 'Poppins',
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
@@ -701,7 +701,7 @@ class _SearchPropertyCardState
                             const SizedBox(height: 2),
                             Row(
                               children: [
-                                const Icon(
+                                 Icon(
                                   Icons.location_on_outlined,
                                   size: 13,
                                   color: AppColors.textTertiary,
@@ -709,7 +709,7 @@ class _SearchPropertyCardState
                                 const SizedBox(width: 2),
                                 Text(
                                   '${p['neighborhood'] ?? ''}, ${p['city'] ?? ''}',
-                                  style: const TextStyle(
+                                  style:  TextStyle(
                                     fontFamily: 'Poppins',
                                     fontSize: 12,
                                     color: AppColors.textTertiary,
@@ -734,7 +734,7 @@ class _SearchPropertyCardState
                               color: AppColors.primary,
                             ),
                           ),
-                          const Text(
+                           Text(
                             'FCFA / MOIS',
                             style: TextStyle(
                               fontFamily: 'Poppins',
@@ -808,8 +808,7 @@ class _SearchPropertyCardState
                         ],
                       ),
                       ElevatedButton(
-                        onPressed: () => context
-                            .go('/property/${p['id']}'),
+                        onPressed: () => context.push('/property/${p['id']}'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           shape: RoundedRectangleBorder(
@@ -854,7 +853,7 @@ class _SearchImagePlaceholder extends StatelessWidget {
       height: 200,
       width: double.infinity,
       color: AppColors.surfaceVariant,
-      child: const Icon(
+      child:  Icon(
         Icons.home_rounded,
         color: AppColors.border,
         size: 48,
@@ -906,7 +905,7 @@ class _FeatureChip extends StatelessWidget {
         const SizedBox(width: 4),
         Text(
           label,
-          style: const TextStyle(
+          style:  TextStyle(
             fontFamily: 'Poppins',
             fontSize: 12,
             color: AppColors.textSecondary,
@@ -941,7 +940,7 @@ class _EmptySearch extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          const Text(
+           Text(
             'Aucun bien trouvé',
             style: TextStyle(
               fontFamily: 'Poppins',

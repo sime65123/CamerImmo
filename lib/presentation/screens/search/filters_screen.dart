@@ -96,7 +96,7 @@ class _FiltersBottomSheetState
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration:  BoxDecoration(
         color: AppColors.surface,
         borderRadius:
             BorderRadius.vertical(top: Radius.circular(24)),
@@ -379,7 +379,7 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       title,
-      style: const TextStyle(
+      style:  TextStyle(
         fontFamily: 'Poppins',
         fontSize: 16,
         fontWeight: FontWeight.w600,
@@ -414,7 +414,7 @@ class _StepperField extends StatelessWidget {
               color: AppColors.surfaceVariant,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(
+            child:  Icon(
               Icons.remove,
               color: AppColors.textSecondary,
               size: 20,
@@ -428,7 +428,7 @@ class _StepperField extends StatelessWidget {
               const EdgeInsets.symmetric(horizontal: 24),
           child: Text(
             '$value',
-            style: const TextStyle(
+            style:  TextStyle(
               fontFamily: 'Poppins',
               fontSize: 20,
               fontWeight: FontWeight.w600,

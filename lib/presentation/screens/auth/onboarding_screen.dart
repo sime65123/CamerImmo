@@ -201,7 +201,7 @@ class _OnboardingPage extends StatelessWidget {
           Text(
             data.title,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style:  TextStyle(
               fontFamily: 'Poppins',
               fontSize: 28,
               fontWeight: FontWeight.w700,
@@ -213,7 +213,7 @@ class _OnboardingPage extends StatelessWidget {
           Text(
             data.subtitle,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style:  TextStyle(
               fontFamily: 'Poppins',
               fontSize: 15,
               fontWeight: FontWeight.w400,
@@ -489,7 +489,7 @@ class _PaymentOptionTile extends StatelessWidget {
               ],
             ),
           ),
-          const Icon(Icons.radio_button_unchecked,
+           Icon(Icons.radio_button_unchecked,
               color: AppColors.border, size: 18),
         ],
       ),
@@ -541,7 +541,7 @@ class _AnalyticsIllustration extends StatelessWidget {
                             letterSpacing: 1,
                           ),
                         ),
-                        const Text(
+                         Text(
                           'Marché de Douala',
                           style: TextStyle(
                             color: AppColors.textPrimary,
@@ -640,7 +640,7 @@ class _AnalyticsIllustration extends StatelessWidget {
                       Stack(
                         clipBehavior: Clip.none,
                         children: [
-                          const Icon(
+                           Icon(
                             Icons.notifications_outlined,
                             size: 28,
                             color: AppColors.textPrimary,
@@ -660,7 +660,7 @@ class _AnalyticsIllustration extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 8),
-                      const Text(
+                       Text(
                         'Alertes\nImmédiates',
                         textAlign: TextAlign.center,
                         style: TextStyle(

@@ -345,7 +345,7 @@ class DocumentsScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 16),
-          const Text(
+           Text(
             'Sélectionner une année',
             style: TextStyle(
               fontFamily: 'Poppins',
@@ -515,7 +515,7 @@ class _DocumentCard extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
+                      style:  TextStyle(
                         fontFamily: 'Poppins',
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
@@ -525,7 +525,7 @@ class _DocumentCard extends StatelessWidget {
                     const SizedBox(height: 3),
                     Text(
                       _formatDate(createdAt),
-                      style: const TextStyle(
+                      style:  TextStyle(
                         fontFamily: 'Poppins',
                         fontSize: 12,
                         color: AppColors.textTertiary,
@@ -751,7 +751,7 @@ class _EmptyDocuments extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          const Text(
+           Text(
             'Aucun document',
             style: TextStyle(
               fontFamily: 'Poppins',

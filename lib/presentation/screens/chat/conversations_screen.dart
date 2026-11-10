@@ -444,7 +444,7 @@ class _ConversationTile extends StatelessWidget {
                             fit: BoxFit.cover,
                             errorBuilder:
                                 (_, __, ___) =>
-                                    const Icon(
+                                     Icon(
                               Icons.person_rounded,
                               color:
                                   AppColors.textTertiary,
@@ -452,7 +452,7 @@ class _ConversationTile extends StatelessWidget {
                             ),
                           ),
                         )
-                      : const Icon(
+                      :  Icon(
                           Icons.person_rounded,
                           color: AppColors.textTertiary,
                           size: 26,
@@ -637,7 +637,7 @@ class _EmptyConversations extends StatelessWidget {
             isFiltered
                 ? 'Aucune conversation trouvée'
                 : 'Pas encore de conversations',
-            style: const TextStyle(
+            style:  TextStyle(
               fontFamily: 'Poppins',
               fontSize: 17,
               fontWeight: FontWeight.w600,
@@ -693,7 +693,7 @@ class _ConversationsSkeleton extends StatelessWidget {
             Container(
               width: 54,
               height: 54,
-              decoration: const BoxDecoration(
+              decoration:  BoxDecoration(
                 color: AppColors.surfaceVariant,
                 shape: BoxShape.circle,
               ),

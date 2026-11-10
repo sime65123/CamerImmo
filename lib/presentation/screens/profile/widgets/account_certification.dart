@@ -39,7 +39,7 @@ class AccountCertificationCard extends ConsumerWidget {
         children: [
           Row(
             children: [
-              const Expanded(
+               Expanded(
                 child: Text(
                   'Certifier mon compte',
                   style: TextStyle(
@@ -72,7 +72,7 @@ class AccountCertificationCard extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 4),
-          const Text(
+           Text(
             'Un compte certifié inspire confiance aux bailleurs et aux locataires.',
             style: TextStyle(
               fontFamily: 'Poppins',
@@ -212,7 +212,7 @@ class _StepRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(title,
-                    style: const TextStyle(
+                    style:  TextStyle(
                       fontFamily: 'Poppins',
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
@@ -221,7 +221,7 @@ class _StepRow extends StatelessWidget {
                 Text(subtitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style:  TextStyle(
                       fontFamily: 'Poppins',
                       fontSize: 12,
                       color: AppColors.textSecondary,
@@ -377,7 +377,7 @@ class _PhoneVerifySheetState extends ConsumerState<_PhoneVerifySheet> {
             ),
           ),
           const SizedBox(height: 20),
-          const Text('Vérifier mon numéro',
+           Text('Vérifier mon numéro',
               style: TextStyle(
                 fontFamily: 'Poppins',
                 fontSize: 20,
@@ -389,7 +389,7 @@ class _PhoneVerifySheetState extends ConsumerState<_PhoneVerifySheet> {
             _codeSent
                 ? 'Un code a été envoyé au $_phone.'
                 : 'Nous vous envoyons un code par SMS.',
-            style: const TextStyle(
+            style:  TextStyle(
               fontFamily: 'Poppins',
               fontSize: 13,
               color: AppColors.textSecondary,
@@ -574,7 +574,7 @@ class _CniVerifySheetState extends ConsumerState<_CniVerifySheet> {
                         color: AppColors.primary),
                     const SizedBox(height: 6),
                     Text(label,
-                        style: const TextStyle(
+                        style:  TextStyle(
                           fontFamily: 'Poppins',
                           fontSize: 12,
                           color: AppColors.textSecondary,
@@ -606,7 +606,7 @@ class _CniVerifySheetState extends ConsumerState<_CniVerifySheet> {
             ),
           ),
           const SizedBox(height: 20),
-          const Text('Vérifier ma CNI',
+           Text('Vérifier ma CNI',
               style: TextStyle(
                 fontFamily: 'Poppins',
                 fontSize: 20,
@@ -614,7 +614,7 @@ class _CniVerifySheetState extends ConsumerState<_CniVerifySheet> {
                 color: AppColors.textPrimary,
               )),
           const SizedBox(height: 6),
-          const Text(
+           Text(
             'Envoyez des photos nettes du recto et du verso. '
             'Elles sont stockées de façon privée et ne sont vues que par '
             'l\'équipe de vérification.',

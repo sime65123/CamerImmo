@@ -257,7 +257,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  const Text(
+                   Text(
                     'CamerImmo',
                     style: TextStyle(
                       fontFamily: 'Poppins',
@@ -279,7 +279,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ),
                 child: Text(
                   'Étape ${_currentStep + 1} sur 3',
-                  style: const TextStyle(
+                  style:  TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
@@ -312,7 +312,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               _currentStep == 0
                   ? 'Informations personnelles'
                   : 'Votre profil',
-              style: const TextStyle(
+              style:  TextStyle(
                 fontFamily: 'Poppins',
                 fontSize: 11,
                 color: AppColors.textTertiary,
@@ -336,7 +336,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 24),
-            const Text(
+             Text(
               'Créer mon compte',
               style: TextStyle(
                 fontFamily: 'Poppins',
@@ -411,7 +411,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     children: [
                       _CameroonFlag(),
                       const SizedBox(width: 8),
-                      const Text(
+                       Text(
                         '+237',
                         style: TextStyle(
                           fontFamily: 'Poppins',
@@ -428,7 +428,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   child: TextFormField(
                     controller: _phoneController,
                     keyboardType: TextInputType.phone,
-                    style: const TextStyle(
+                    style:  TextStyle(
                       fontFamily: 'Poppins',
                       fontSize: 14,
                       color: AppColors.textPrimary,
@@ -459,14 +459,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               controller: _passwordController,
               obscureText: _obscurePassword,
               onChanged: (_) => setState(() {}),
-              style: const TextStyle(
+              style:  TextStyle(
                 fontFamily: 'Poppins',
                 fontSize: 14,
                 color: AppColors.textPrimary,
               ),
               decoration: InputDecoration(
                 hintText: '••••••••',
-                prefixIcon: const Icon(
+                prefixIcon:  Icon(
                   Icons.lock_outline,
                   color: AppColors.textTertiary,
                   size: 20,
@@ -540,14 +540,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             TextFormField(
               controller: _confirmPasswordController,
               obscureText: _obscureConfirm,
-              style: const TextStyle(
+              style:  TextStyle(
                 fontFamily: 'Poppins',
                 fontSize: 14,
                 color: AppColors.textPrimary,
               ),
               decoration: InputDecoration(
                 hintText: '••••••••',
-                prefixIcon: const Icon(
+                prefixIcon:  Icon(
                   Icons.sync_lock,
                   color: AppColors.textTertiary,
                   size: 20,
@@ -634,7 +634,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             const SizedBox(height: 24),
             Row(
               children: [
-                const Expanded(child: Divider(color: AppColors.border)),
+                 Expanded(child: Divider(color: AppColors.border)),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   child: Text(
@@ -646,7 +646,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     ),
                   ),
                 ),
-                const Expanded(child: Divider(color: AppColors.border)),
+                 Expanded(child: Divider(color: AppColors.border)),
               ],
             ),
             const SizedBox(height: 16),
@@ -680,7 +680,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 24),
-          const Text(
+           Text(
             'Comment allez-vous\nutiliser CamerImmo ?',
             style: TextStyle(
               fontFamily: 'Poppins',
@@ -871,7 +871,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         TextFormField(
           controller: controller,
           keyboardType: keyboardType,
-          style: const TextStyle(
+          style:  TextStyle(
             fontFamily: 'Poppins',
             fontSize: 14,
             color: AppColors.textPrimary,
@@ -896,7 +896,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   Widget _buildLabelText(String label) {
     return Text(
       label,
-      style: const TextStyle(
+      style:  TextStyle(
         fontFamily: 'Poppins',
         fontSize: 11,
         fontWeight: FontWeight.w600,
@@ -953,7 +953,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     children: [
                       Text(
                         f.$4,
-                        style: const TextStyle(
+                        style:  TextStyle(
                           fontFamily: 'Poppins',
                           fontSize: 14,
                           fontWeight: FontWeight.w600,

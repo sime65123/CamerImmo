@@ -448,7 +448,7 @@ class _MarketKPIs extends StatelessWidget {
                 const Spacer(),
                 Text(
                   kpi['value'] as String,
-                  style: const TextStyle(
+                  style:  TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
@@ -457,7 +457,7 @@ class _MarketKPIs extends StatelessWidget {
                 ),
                 Text(
                   kpi['label'] as String,
-                  style: const TextStyle(
+                  style:  TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 11,
                     color: AppColors.textTertiary,
@@ -535,7 +535,7 @@ class _PriceEvolutionChart extends StatelessWidget {
                   }
                   return Text(
                     months[index % 12],
-                    style: const TextStyle(
+                    style:  TextStyle(
                       fontFamily: 'Poppins',
                       fontSize: 10,
                       color: AppColors.textTertiary,
@@ -551,7 +551,7 @@ class _PriceEvolutionChart extends StatelessWidget {
                 getTitlesWidget: (value, _) {
                   return Text(
                     '${(value / 1000).toStringAsFixed(0)}k',
-                    style: const TextStyle(
+                    style:  TextStyle(
                       fontFamily: 'Poppins',
                       fontSize: 9,
                       color: AppColors.textTertiary,
@@ -651,7 +651,7 @@ class _NeighborhoodChart extends StatelessWidget {
                   children: [
                     Text(
                       neighborhood,
-                      style: const TextStyle(
+                      style:  TextStyle(
                         fontFamily: 'Poppins',
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
@@ -797,7 +797,7 @@ class _TypeDistributionChart extends StatelessWidget {
                       Expanded(
                         child: Text(
                           s['label'] as String,
-                          style: const TextStyle(
+                          style:  TextStyle(
                             fontFamily: 'Poppins',
                             fontSize: 12,
                             color: AppColors.textSecondary,
@@ -806,7 +806,7 @@ class _TypeDistributionChart extends StatelessWidget {
                       ),
                       Text(
                         '$pct%',
-                        style: const TextStyle(
+                        style:  TextStyle(
                           fontFamily: 'Poppins',
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
@@ -897,7 +897,7 @@ class _PersonalStats extends StatelessWidget {
                 mainAxisAlignment:
                     MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                   Text(
                     'Taux d\'occupation',
                     style: TextStyle(
                       fontFamily: 'Poppins',
@@ -1003,7 +1003,7 @@ class _StatItem extends StatelessWidget {
           ),
           Text(
             label,
-            style: const TextStyle(
+            style:  TextStyle(
               fontFamily: 'Poppins',
               fontSize: 11,
               color: AppColors.textTertiary,
@@ -1069,7 +1069,7 @@ class _TensionIndex extends StatelessWidget {
               Expanded(
                 child: Text(
                   neighborhood,
-                  style: const TextStyle(
+                  style:  TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
@@ -1122,7 +1122,7 @@ class _SectionTitle extends StatelessWidget {
       children: [
         Text(
           title,
-          style: const TextStyle(
+          style:  TextStyle(
             fontFamily: 'Poppins',
             fontSize: 18,
             fontWeight: FontWeight.w700,
@@ -1131,7 +1131,7 @@ class _SectionTitle extends StatelessWidget {
         ),
         Text(
           subtitle,
-          style: const TextStyle(
+          style:  TextStyle(
             fontFamily: 'Poppins',
             fontSize: 12,
             color: AppColors.textTertiary,

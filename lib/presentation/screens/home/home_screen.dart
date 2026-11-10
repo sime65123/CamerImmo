@@ -341,7 +341,7 @@ class _HomeScreenState
             mainAxisAlignment:
                 MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+               Text(
                 'Biens recommandés',
                 style: TextStyle(
                   fontFamily: 'Poppins',
@@ -450,7 +450,7 @@ class _HomeScreenState
             mainAxisAlignment:
                 MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+               Text(
                 'Vos Propriétés',
                 style: TextStyle(
                   fontFamily: 'Poppins',
@@ -482,7 +482,7 @@ class _HomeScreenState
         child: Padding(
           padding:
               const EdgeInsets.fromLTRB(20, 24, 20, 12),
-          child: const Text(
+          child:  Text(
             'Activité Récente',
             style: TextStyle(
               fontFamily: 'Poppins',
@@ -885,7 +885,7 @@ class _NoLeaseCard extends StatelessWidget {
               crossAxisAlignment:
                   CrossAxisAlignment.start,
               children: [
-                const Text(
+                 Text(
                   'Aucun bail actif',
                   style: TextStyle(
                     fontFamily: 'Poppins',
@@ -952,7 +952,7 @@ class _SearchBar extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.search,
+                   Icon(Icons.search,
                       color: AppColors.textTertiary,
                       size: 20),
                   const SizedBox(width: 10),
@@ -1010,7 +1010,7 @@ class _CategoriesRow extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
+         Padding(
           padding: EdgeInsets.symmetric(horizontal: 20),
           child: Text(
             'CATÉGORIES',
@@ -1222,7 +1222,7 @@ class _KPIGrid extends StatelessWidget {
                 children: [
                   Text(
                     kpi['value'] as String,
-                    style: const TextStyle(
+                    style:  TextStyle(
                       fontFamily: 'Poppins',
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
@@ -1231,7 +1231,7 @@ class _KPIGrid extends StatelessWidget {
                   ),
                   Text(
                     kpi['label'] as String,
-                    style: const TextStyle(
+                    style:  TextStyle(
                       fontFamily: 'Poppins',
                       fontSize: 10,
                       color: AppColors.textTertiary,
@@ -1282,11 +1282,11 @@ class _LandlordPropertiesList extends ConsumerWidget {
               ),
               child: Column(
                 children: [
-                  const Icon(Icons.add_home_outlined,
+                   Icon(Icons.add_home_outlined,
                       size: 48,
                       color: AppColors.textTertiary),
                   const SizedBox(height: 12),
-                  const Text(
+                   Text(
                     'Aucun bien publié',
                     style: TextStyle(
                       fontFamily: 'Poppins',
@@ -1453,7 +1453,7 @@ class _LandlordPropertyCard extends StatelessWidget {
               children: [
                 Text(
                   property['title'] as String? ?? '',
-                  style: const TextStyle(
+                  style:  TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -1463,14 +1463,14 @@ class _LandlordPropertyCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    const Icon(
+                     Icon(
                         Icons.location_on_outlined,
                         size: 14,
                         color: AppColors.textTertiary),
                     const SizedBox(width: 4),
                     Text(
                       '${property['neighborhood'] ?? ''}, ${property['city'] ?? ''}',
-                      style: const TextStyle(
+                      style:  TextStyle(
                         fontFamily: 'Poppins',
                         fontSize: 13,
                         color: AppColors.textTertiary,
@@ -1499,7 +1499,7 @@ class _LandlordPropertyCard extends StatelessWidget {
                           onPressed: () {},
                           style:
                               OutlinedButton.styleFrom(
-                            side: const BorderSide(
+                            side:  BorderSide(
                                 color: AppColors.border),
                             shape: RoundedRectangleBorder(
                                 borderRadius:
@@ -1509,7 +1509,7 @@ class _LandlordPropertyCard extends StatelessWidget {
                                 const EdgeInsets.symmetric(
                                     vertical: 10),
                           ),
-                          child: const Text('Modifier',
+                          child:  Text('Modifier',
                               style: TextStyle(
                                 fontFamily: 'Poppins',
                                 fontSize: 13,
@@ -1555,7 +1555,7 @@ class _LandlordPropertyCard extends StatelessWidget {
                               '/maintenance?propertyId=${property['id']}'),
                           style:
                               OutlinedButton.styleFrom(
-                            side: const BorderSide(
+                            side:  BorderSide(
                                 color: AppColors.border),
                             shape: RoundedRectangleBorder(
                                 borderRadius:
@@ -1565,7 +1565,7 @@ class _LandlordPropertyCard extends StatelessWidget {
                                 const EdgeInsets.symmetric(
                                     vertical: 10),
                           ),
-                          child: const Text('Maintenance',
+                          child:  Text('Maintenance',
                               style: TextStyle(
                                 fontFamily: 'Poppins',
                                 fontSize: 13,
@@ -1636,7 +1636,7 @@ class _PropPlaceholder extends StatelessWidget {
       height: 160,
       width: double.infinity,
       color: AppColors.surfaceVariant,
-      child: const Icon(Icons.home_rounded,
+      child:  Icon(Icons.home_rounded,
           color: AppColors.border, size: 40),
     );
   }
@@ -1687,7 +1687,7 @@ class _PropertyCardState extends State<_PropertyCard> {
     final rooms = p['nb_rooms'] as int? ?? 0;
 
     return GestureDetector(
-      onTap: () => context.go('/property/${p['id']}'),
+      onTap: () => context.push('/property/${p['id']}'),
       child: Container(
         width: 200,
         decoration: BoxDecoration(
@@ -1720,7 +1720,7 @@ class _PropertyCardState extends State<_PropertyCard> {
                               Container(
                             height: 140,
                             color: AppColors.surfaceVariant,
-                            child: const Icon(
+                            child:  Icon(
                                 Icons.home_rounded,
                                 color: AppColors.border,
                                 size: 40),
@@ -1729,7 +1729,7 @@ class _PropertyCardState extends State<_PropertyCard> {
                       : Container(
                           height: 140,
                           color: AppColors.surfaceVariant,
-                          child: const Icon(
+                          child:  Icon(
                               Icons.home_rounded,
                               color: AppColors.border,
                               size: 40),
@@ -1807,7 +1807,7 @@ class _PropertyCardState extends State<_PropertyCard> {
                 children: [
                   Text(
                     p['title'] as String? ?? '',
-                    style: const TextStyle(
+                    style:  TextStyle(
                       fontFamily: 'Poppins',
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
@@ -1819,7 +1819,7 @@ class _PropertyCardState extends State<_PropertyCard> {
                   const SizedBox(height: 2),
                   Row(
                     children: [
-                      const Icon(
+                       Icon(
                           Icons.location_on_outlined,
                           size: 12,
                           color: AppColors.textTertiary),
@@ -1827,7 +1827,7 @@ class _PropertyCardState extends State<_PropertyCard> {
                       Expanded(
                         child: Text(
                           '${p['neighborhood'] ?? ''}, ${p['city'] ?? ''}',
-                          style: const TextStyle(
+                          style:  TextStyle(
                             fontFamily: 'Poppins',
                             fontSize: 11,
                             color: AppColors.textTertiary,
@@ -2007,14 +2007,14 @@ class _ActivityItem extends StatelessWidget {
                   CrossAxisAlignment.start,
               children: [
                 Text(title,
-                    style: const TextStyle(
+                    style:  TextStyle(
                       fontFamily: 'Poppins',
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
                       color: AppColors.textPrimary,
                     )),
                 Text(body,
-                    style: const TextStyle(
+                    style:  TextStyle(
                       fontFamily: 'Poppins',
                       fontSize: 12,
                       color: AppColors.textSecondary,
@@ -2025,7 +2025,7 @@ class _ActivityItem extends StatelessWidget {
             ),
           ),
           Text(timeAgo,
-              style: const TextStyle(
+              style:  TextStyle(
                 fontFamily: 'Poppins',
                 fontSize: 11,
                 color: AppColors.textTertiary,
@@ -2139,7 +2139,7 @@ class _InfoChip extends StatelessWidget {
         Icon(icon, size: 11, color: AppColors.textTertiary),
         const SizedBox(width: 3),
         Text(label,
-            style: const TextStyle(
+            style:  TextStyle(
               fontFamily: 'Poppins',
               fontSize: 11,
               color: AppColors.textTertiary,
@@ -2413,7 +2413,7 @@ class _LeaseRequestsSheetState extends ConsumerState<_LeaseRequestsSheet> {
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          const Padding(
+           Padding(
             padding: EdgeInsets.all(16),
             child: Text(
               'Demandes',
@@ -2444,7 +2444,7 @@ class _LeaseRequestsSheetState extends ConsumerState<_LeaseRequestsSheet> {
                 final requests = snapshot.data![0];
                 final visits = snapshot.data![1];
                 if (requests.isEmpty && visits.isEmpty) {
-                  return const Center(
+                  return  Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -2464,7 +2464,7 @@ class _LeaseRequestsSheetState extends ConsumerState<_LeaseRequestsSheet> {
                 Widget header(String t) => Padding(
                       padding: const EdgeInsets.only(bottom: 10, top: 4),
                       child: Text(t,
-                          style: const TextStyle(
+                          style:  TextStyle(
                             fontFamily: 'Poppins',
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
@@ -2530,7 +2530,7 @@ class _LeaseRequestsSheetState extends ConsumerState<_LeaseRequestsSheet> {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(when,
-                    style: const TextStyle(
+                    style:  TextStyle(
                       fontFamily: 'Poppins',
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
@@ -2541,7 +2541,7 @@ class _LeaseRequestsSheetState extends ConsumerState<_LeaseRequestsSheet> {
           ),
           const SizedBox(height: 6),
           Text(phone.isEmpty ? name : '$name · $phone',
-              style: const TextStyle(
+              style:  TextStyle(
                 fontFamily: 'Poppins',
                 fontSize: 13,
                 color: AppColors.textSecondary,
@@ -2549,7 +2549,7 @@ class _LeaseRequestsSheetState extends ConsumerState<_LeaseRequestsSheet> {
           if (message != null && message.isNotEmpty) ...[
             const SizedBox(height: 8),
             Text('"$message"',
-                style: const TextStyle(
+                style:  TextStyle(
                   fontFamily: 'Poppins',
                   fontSize: 13,
                   fontStyle: FontStyle.italic,
@@ -2626,7 +2626,7 @@ class _LeaseRequestsSheetState extends ConsumerState<_LeaseRequestsSheet> {
               Container(
                 width: 44,
                 height: 44,
-                decoration: const BoxDecoration(
+                decoration:  BoxDecoration(
                   color: AppColors.primaryLight,
                   shape: BoxShape.circle,
                 ),
@@ -2639,7 +2639,7 @@ class _LeaseRequestsSheetState extends ConsumerState<_LeaseRequestsSheet> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(name,
-                        style: const TextStyle(
+                        style:  TextStyle(
                           fontFamily: 'Poppins',
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
@@ -2647,7 +2647,7 @@ class _LeaseRequestsSheetState extends ConsumerState<_LeaseRequestsSheet> {
                         )),
                     if (phone.isNotEmpty)
                       Text(phone,
-                          style: const TextStyle(
+                          style:  TextStyle(
                             fontFamily: 'Poppins',
                             fontSize: 13,
                             color: AppColors.textSecondary,
@@ -2679,7 +2679,7 @@ class _LeaseRequestsSheetState extends ConsumerState<_LeaseRequestsSheet> {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text('"$message"',
-                  style: const TextStyle(
+                  style:  TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 13,
                     color: AppColors.textSecondary,

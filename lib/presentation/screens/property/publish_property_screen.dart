@@ -593,7 +593,7 @@ class _PublishPropertyScreenState
               ),
               child: Row(
                 children: [
-                  const Icon(
+                   Icon(
                       Icons.calendar_today_outlined,
                       color: AppColors.textTertiary,
                       size: 18),
@@ -641,12 +641,12 @@ class _PublishPropertyScreenState
               child: DropdownButton<String>(
                 value: _selectedCity,
                 isExpanded: true,
-                style: const TextStyle(
+                style:  TextStyle(
                   fontFamily: 'Poppins',
                   fontSize: 14,
                   color: AppColors.textPrimary,
                 ),
-                icon: const Icon(
+                icon:  Icon(
                     Icons.keyboard_arrow_down,
                     color: AppColors.textTertiary),
                 items: AppConstants.cities
@@ -677,7 +677,7 @@ class _PublishPropertyScreenState
                   fontFamily: 'Poppins',
                   color: AppColors.textHint,
                   fontSize: 14),
-              prefixIcon: const Icon(
+              prefixIcon:  Icon(
                   Icons.location_on_outlined,
                   color: AppColors.textTertiary),
             ),
@@ -936,7 +936,7 @@ class _PublishPropertyScreenState
                           )
                         : Container(
                             color: AppColors.surfaceVariant,
-                            child: const Icon(Icons.image,
+                            child:  Icon(Icons.image,
                                 color: AppColors.border),
                           ),
                   ),
@@ -1007,7 +1007,7 @@ class _PublishPropertyScreenState
                   fontFamily: 'Poppins',
                   color: AppColors.textHint),
               suffixText: 'FCFA',
-              suffixStyle: const TextStyle(
+              suffixStyle:  TextStyle(
                   fontFamily: 'Poppins',
                   color: AppColors.textTertiary),
             ),
@@ -1097,7 +1097,7 @@ class _PublishPropertyScreenState
                   color: AppColors.textHint,
                   fontSize: 14),
               suffixText: 'FCFA',
-              suffixStyle: const TextStyle(
+              suffixStyle:  TextStyle(
                   fontFamily: 'Poppins',
                   color: AppColors.textTertiary),
             ),
@@ -1180,7 +1180,7 @@ class _PublishPropertyScreenState
                 style: OutlinedButton.styleFrom(
                   foregroundColor:
                       AppColors.textSecondary,
-                  side: const BorderSide(
+                  side:  BorderSide(
                       color: AppColors.border),
                   padding: const EdgeInsets.symmetric(
                       vertical: 14),
@@ -1239,7 +1239,7 @@ class _StepTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       title,
-      style: const TextStyle(
+      style:  TextStyle(
         fontFamily: 'Poppins',
         fontSize: 16,
         fontWeight: FontWeight.w600,
@@ -1290,7 +1290,7 @@ class _StepperWidget extends StatelessWidget {
               horizontal: 24),
           child: Text(
             label ?? '$value',
-            style: const TextStyle(
+            style:  TextStyle(
               fontFamily: 'Poppins',
               fontSize: 20,
               fontWeight: FontWeight.w700,

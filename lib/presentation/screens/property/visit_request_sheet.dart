@@ -156,7 +156,7 @@ class _VisitRequestSheetState extends State<_VisitRequestSheet> {
               ),
             ),
             const SizedBox(height: 20),
-            const Text('Demander une visite',
+             Text('Demander une visite',
                 style: TextStyle(
                   fontFamily: 'Poppins',
                   fontSize: 20,
@@ -164,7 +164,7 @@ class _VisitRequestSheetState extends State<_VisitRequestSheet> {
                   color: AppColors.textPrimary,
                 )),
             const SizedBox(height: 6),
-            const Text(
+             Text(
               'Choisissez un créneau : le propriétaire confirme ou propose un autre moment.',
               style: TextStyle(
                 fontFamily: 'Poppins',
@@ -173,7 +173,7 @@ class _VisitRequestSheetState extends State<_VisitRequestSheet> {
               ),
             ),
             const SizedBox(height: 20),
-            const Text('Jour',
+             Text('Jour',
                 style: TextStyle(
                   fontFamily: 'Poppins',
                   fontSize: 14,
@@ -226,7 +226,7 @@ class _VisitRequestSheetState extends State<_VisitRequestSheet> {
               ),
             ),
             const SizedBox(height: 18),
-            const Text('Heure',
+             Text('Heure',
                 style: TextStyle(
                   fontFamily: 'Poppins',
                   fontSize: 14,

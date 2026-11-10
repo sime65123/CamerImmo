@@ -168,7 +168,7 @@ class AlertsScreen extends ConsumerWidget {
           TextButton(
             onPressed: () =>
                 Navigator.pop(context, false),
-            child: const Text('Annuler',
+            child:  Text('Annuler',
                 style: TextStyle(
                     fontFamily: 'Poppins',
                     color: AppColors.textSecondary)),
@@ -417,13 +417,13 @@ class _AlertCard extends StatelessWidget {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.schedule,
+                       Icon(Icons.schedule,
                           size: 12,
                           color: AppColors.textTertiary),
                       const SizedBox(width: 4),
                       Text(
                         _getFrequencyLabel(frequency),
-                        style: const TextStyle(
+                        style:  TextStyle(
                           fontFamily: 'Poppins',
                           fontSize: 11,
                           color: AppColors.textTertiary,
@@ -438,7 +438,7 @@ class _AlertCard extends StatelessWidget {
                 // Dernière activité
                 Text(
                   lastLabel,
-                  style: const TextStyle(
+                  style:  TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 11,
                     color: AppColors.textTertiary,
@@ -488,7 +488,7 @@ class _EmptyAlerts extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          const Text(
+           Text(
             'Aucune alerte',
             style: TextStyle(
               fontFamily: 'Poppins',

@@ -208,7 +208,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                       const SizedBox(height: 24),
 
                       // Mode de paiement
-                      const Text(
+                       Text(
                         'MODE DE PAIEMENT',
                         style: TextStyle(
                           fontFamily: 'Poppins',
@@ -445,7 +445,7 @@ class _PropertyPaymentCard extends StatelessWidget {
                 Text(
                   property?['title'] as String? ??
                       'Mon logement',
-                  style: const TextStyle(
+                  style:  TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
@@ -457,7 +457,7 @@ class _PropertyPaymentCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    const Icon(
+                     Icon(
                       Icons.location_on_outlined,
                       size: 13,
                       color: AppColors.textTertiary,
@@ -466,7 +466,7 @@ class _PropertyPaymentCard extends StatelessWidget {
                     Expanded(
                       child: Text(
                         '${property?['neighborhood'] ?? ''}, ${property?['city'] ?? ''}',
-                        style: const TextStyle(
+                        style:  TextStyle(
                           fontFamily: 'Poppins',
                           fontSize: 12,
                           color: AppColors.textTertiary,
@@ -506,7 +506,7 @@ class _PropertyPaymentCard extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 month.toUpperCase(),
-                style: const TextStyle(
+                style:  TextStyle(
                   fontFamily: 'Poppins',
                   fontSize: 10,
                   color: AppColors.textTertiary,
@@ -528,7 +528,7 @@ class _ImagePlaceholder extends StatelessWidget {
       width: 80,
       height: 70,
       color: AppColors.surfaceVariant,
-      child: const Icon(
+      child:  Icon(
         Icons.home_rounded,
         color: AppColors.border,
         size: 28,
@@ -598,7 +598,7 @@ class _PaymentMethodCard extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style:  TextStyle(
                       fontFamily: 'Poppins',
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
@@ -607,7 +607,7 @@ class _PaymentMethodCard extends StatelessWidget {
                   ),
                   Text(
                     subtitle,
-                    style: const TextStyle(
+                    style:  TextStyle(
                       fontFamily: 'Poppins',
                       fontSize: 12,
                       color: AppColors.textSecondary,
@@ -734,7 +734,7 @@ class _InvoiceDetails extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const Row(
+           Row(
             children: [
               Text(
                 'DÉTAILS DE LA FACTURE',
@@ -766,7 +766,7 @@ class _InvoiceDetails extends StatelessWidget {
             isAccent: true,
           ),
 
-          const Padding(
+           Padding(
             padding: EdgeInsets.symmetric(vertical: 14),
             child: Divider(color: AppColors.borderLight),
           ),
@@ -776,7 +776,7 @@ class _InvoiceDetails extends StatelessWidget {
             mainAxisAlignment:
                 MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+               Text(
                 'Total à payer',
                 style: TextStyle(
                   fontFamily: 'Poppins',

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_theme.dart';
 
@@ -64,7 +65,7 @@ class SettingsScreen extends ConsumerWidget {
                         .read(notifPushProvider.notifier)
                         .state = v,
                   ),
-                  const Divider(
+                   Divider(
                       height: 1,
                       indent: 56,
                       color: AppColors.borderLight),
@@ -96,7 +97,7 @@ class SettingsScreen extends ConsumerWidget {
                         _showChangePasswordDialog(
                             context),
                   ),
-                  const Divider(
+                   Divider(
                       height: 1,
                       indent: 56,
                       color: AppColors.borderLight),
@@ -125,7 +126,7 @@ class SettingsScreen extends ConsumerWidget {
                     onTap: () => _showLangPicker(
                         context, ref, selectedLang),
                   ),
-                  const Divider(
+                   Divider(
                       height: 1,
                       indent: 56,
                       color: AppColors.borderLight),
@@ -137,6 +138,8 @@ class SettingsScreen extends ConsumerWidget {
                       ref
                           .read(darkModeProvider.notifier)
                           .state = v;
+                      SharedPreferences.getInstance()
+                          .then((p) => p.setBool('dark_mode', v));
                       ScaffoldMessenger.of(context)
                           .showSnackBar(
                         SnackBar(
@@ -182,7 +185,7 @@ class SettingsScreen extends ConsumerWidget {
                     onTap: () =>
                         _showFAQ(context),
                   ),
-                  const Divider(
+                   Divider(
                       height: 1,
                       indent: 56,
                       color: AppColors.borderLight),
@@ -211,7 +214,7 @@ class SettingsScreen extends ConsumerWidget {
                     onTap: () =>
                         _showLegal(context, 'CGU'),
                   ),
-                  const Divider(
+                   Divider(
                       height: 1,
                       indent: 56,
                       color: AppColors.borderLight),
@@ -242,7 +245,7 @@ class SettingsScreen extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(
                   vertical: 24),
               child: Column(
-                children: const [
+                children:  [
                   Text('VERSION v2.0.4',
                       style: TextStyle(
                         fontFamily: 'Poppins',
@@ -294,7 +297,7 @@ class SettingsScreen extends ConsumerWidget {
                       color: AppColors.primary,
                     )),
                 const Spacer(),
-                const Icon(Icons.more_vert,
+                 Icon(Icons.more_vert,
                     color: AppColors.textSecondary),
               ],
             ),
@@ -329,7 +332,7 @@ class SettingsScreen extends ConsumerWidget {
                             color: AppColors.primaryLight,
                             width: 2),
                       ),
-                      child: const Icon(
+                      child:  Icon(
                           Icons.person_rounded,
                           color: AppColors.textTertiary,
                           size: 28),
@@ -340,7 +343,7 @@ class SettingsScreen extends ConsumerWidget {
                           CrossAxisAlignment.start,
                       children: [
                         Text(fullName,
-                            style: const TextStyle(
+                            style:  TextStyle(
                               fontFamily: 'Poppins',
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
@@ -427,7 +430,7 @@ class SettingsScreen extends ConsumerWidget {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('Annuler',
+                child:  Text('Annuler',
                     style: TextStyle(
                         fontFamily: 'Poppins',
                         color: AppColors.textSecondary)),
@@ -937,7 +940,7 @@ class _ToggleRow extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Text(label,
-                style: const TextStyle(
+                style:  TextStyle(
                   fontFamily: 'Poppins',
                   fontSize: 14,
                   color: AppColors.textPrimary,
@@ -981,12 +984,12 @@ class _ArrowRow extends StatelessWidget {
             color: AppColors.textSecondary, size: 18),
       ),
       title: Text(label,
-          style: const TextStyle(
+          style:  TextStyle(
             fontFamily: 'Poppins',
             fontSize: 14,
             color: AppColors.textPrimary,
           )),
-      trailing: const Icon(Icons.chevron_right,
+      trailing:  Icon(Icons.chevron_right,
           color: AppColors.textTertiary, size: 20),
       onTap: onTap,
     );
@@ -1016,12 +1019,12 @@ class _LangRow extends StatelessWidget {
                 color: AppColors.surfaceVariant,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.translate_outlined,
+              child:  Icon(Icons.translate_outlined,
                   color: AppColors.textSecondary,
                   size: 18),
             ),
             const SizedBox(width: 12),
-            const Expanded(
+             Expanded(
               child: Text('Langue',
                   style: TextStyle(
                     fontFamily: 'Poppins',
@@ -1039,13 +1042,13 @@ class _LangRow extends StatelessWidget {
               child: Row(
                 children: [
                   Text(selectedLang,
-                      style: const TextStyle(
+                      style:  TextStyle(
                         fontFamily: 'Poppins',
                         fontSize: 13,
                         color: AppColors.textSecondary,
                       )),
                   const SizedBox(width: 4),
-                  const Icon(Icons.keyboard_arrow_down,
+                   Icon(Icons.keyboard_arrow_down,
                       size: 16,
                       color: AppColors.textTertiary),
                 ],
@@ -1102,7 +1105,7 @@ class _LogoutButton extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler',
+            child:  Text('Annuler',
                 style: TextStyle(
                     fontFamily: 'Poppins',
                     color: AppColors.textSecondary)),
@@ -1158,7 +1161,7 @@ class _FAQItemState extends State<_FAQItem> {
       ),
       child: ExpansionTile(
         title: Text(widget.question,
-            style: const TextStyle(
+            style:  TextStyle(
               fontFamily: 'Poppins',
               fontSize: 14,
               fontWeight: FontWeight.w600,
@@ -1216,13 +1219,13 @@ class _ContactRow extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(label,
-                style: const TextStyle(
+                style:  TextStyle(
                   fontFamily: 'Poppins',
                   fontSize: 11,
                   color: AppColors.textTertiary,
                 )),
             Text(value,
-                style: const TextStyle(
+                style:  TextStyle(
                   fontFamily: 'Poppins',
                   fontSize: 14,
                   fontWeight: FontWeight.w500,

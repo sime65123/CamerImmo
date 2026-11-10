@@ -223,7 +223,7 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.build_circle_outlined,
+               Icon(Icons.build_circle_outlined,
                   size: 56, color: AppColors.textTertiary),
               const SizedBox(height: 12),
               Text(
@@ -231,7 +231,7 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
                     ? 'Aucun signalement pour ce bien.'
                     : 'Aucun signalement. Un souci dans votre logement ? Signalez-le au propriétaire.',
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style:  TextStyle(
                   fontFamily: 'Poppins',
                   fontSize: 14,
                   color: AppColors.textSecondary,
@@ -317,14 +317,14 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(r['title'] as String? ?? 'Signalement',
-                        style: const TextStyle(
+                        style:  TextStyle(
                           fontFamily: 'Poppins',
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
                           color: AppColors.textPrimary,
                         )),
                     Text(date,
-                        style: const TextStyle(
+                        style:  TextStyle(
                           fontFamily: 'Poppins',
                           fontSize: 12,
                           color: AppColors.textTertiary,
@@ -338,7 +338,7 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
           if ((r['description'] as String?)?.isNotEmpty == true) ...[
             const SizedBox(height: 10),
             Text(r['description'] as String,
-                style: const TextStyle(
+                style:  TextStyle(
                   fontFamily: 'Poppins',
                   fontSize: 13,
                   color: AppColors.textSecondary,
@@ -369,7 +369,7 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
                           width: 64,
                           height: 64,
                           color: AppColors.surfaceVariant,
-                          child: const Icon(Icons.broken_image_outlined,
+                          child:  Icon(Icons.broken_image_outlined,
                               color: AppColors.border))),
                 ),
               ),
@@ -564,7 +564,7 @@ class _MaintenanceFormState extends State<_MaintenanceForm> {
               ),
             ),
             const SizedBox(height: 20),
-            const Text('Signaler un problème',
+             Text('Signaler un problème',
                 style: TextStyle(
                   fontFamily: 'Poppins',
                   fontSize: 20,
@@ -631,7 +631,7 @@ class _MaintenanceFormState extends State<_MaintenanceForm> {
                   hintText: 'Décrivez le problème...'),
             ),
             const SizedBox(height: 16),
-            const Text('Priorité',
+             Text('Priorité',
                 style: TextStyle(
                   fontFamily: 'Poppins',
                   fontSize: 14,

@@ -233,7 +233,7 @@ class ProfileScreen extends ConsumerWidget {
             const Spacer(),
             IconButton(
               onPressed: () => _showMoreOptions(context),
-              icon: const Icon(
+              icon:  Icon(
                 Icons.more_vert,
                 color: AppColors.textSecondary,
               ),
@@ -320,14 +320,14 @@ class ProfileScreen extends ConsumerWidget {
                             avatarUrl,
                             fit: BoxFit.cover,
                             errorBuilder: (_, __, ___) =>
-                                const Icon(
+                                 Icon(
                               Icons.person_rounded,
                               size: 44,
                               color: AppColors.textTertiary,
                             ),
                           ),
                         )
-                      : const Icon(
+                      :  Icon(
                           Icons.person_rounded,
                           size: 44,
                           color: AppColors.textTertiary,
@@ -365,7 +365,7 @@ class ProfileScreen extends ConsumerWidget {
               children: [
                 Text(
                   fullName,
-                  style: const TextStyle(
+                  style:  TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
@@ -472,7 +472,7 @@ class _StatItem extends StatelessWidget {
       child: Column(
         children: [
           Text(value,
-              style: const TextStyle(
+              style:  TextStyle(
                 fontFamily: 'Poppins',
                 fontSize: 22,
                 fontWeight: FontWeight.w700,
@@ -480,7 +480,7 @@ class _StatItem extends StatelessWidget {
               )),
           const SizedBox(height: 2),
           Text(label,
-              style: const TextStyle(
+              style:  TextStyle(
                 fontFamily: 'Poppins',
                 fontSize: 10,
                 color: AppColors.textTertiary,
@@ -561,7 +561,7 @@ class _CreditScoreCard extends StatelessWidget {
             mainAxisAlignment:
                 MainAxisAlignment.spaceBetween,
             children: [
-              const Column(
+               Column(
                 crossAxisAlignment:
                     CrossAxisAlignment.start,
                 children: [
@@ -707,7 +707,7 @@ class _InfoSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Informations',
+         Text('Informations',
             style: TextStyle(
               fontFamily: 'Poppins',
               fontSize: 18,
@@ -734,7 +734,7 @@ class _InfoSection extends StatelessWidget {
                 value: email,
                 onTap: () => _showEditProfileDialog(ctx),
               ),
-              const Divider(
+               Divider(
                   height: 1,
                   indent: 56,
                   color: AppColors.borderLight),
@@ -746,7 +746,7 @@ class _InfoSection extends StatelessWidget {
                     : phone,
                 onTap: () => _showEditProfileDialog(ctx),
               ),
-              const Divider(
+               Divider(
                   height: 1,
                   indent: 56,
                   color: AppColors.borderLight),
@@ -831,14 +831,14 @@ class _InfoRow extends StatelessWidget {
                     CrossAxisAlignment.start,
                 children: [
                   Text(label,
-                      style: const TextStyle(
+                      style:  TextStyle(
                         fontFamily: 'Poppins',
                         fontSize: 10,
                         color: AppColors.textTertiary,
                         letterSpacing: 0.5,
                       )),
                   Text(value,
-                      style: const TextStyle(
+                      style:  TextStyle(
                         fontFamily: 'Poppins',
                         fontSize: 14,
                         color: AppColors.textPrimary,
@@ -849,7 +849,7 @@ class _InfoRow extends StatelessWidget {
             if (trailing != null)
               trailing!
             else if (onTap != null)
-              const Icon(Icons.chevron_right,
+               Icon(Icons.chevron_right,
                   color: AppColors.textTertiary, size: 18),
           ],
         ),
@@ -990,7 +990,7 @@ class _EditProfileDialogState
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Annuler',
+          child:  Text('Annuler',
               style: TextStyle(
                   fontFamily: 'Poppins',
                   color: AppColors.textSecondary)),
@@ -1057,7 +1057,7 @@ class _QuickLinks extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Liens rapides',
+         Text('Liens rapides',
             style: TextStyle(
               fontFamily: 'Poppins',
               fontSize: 18,
@@ -1080,7 +1080,7 @@ class _QuickLinks extends StatelessWidget {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: links.length,
-            separatorBuilder: (_, __) => const Divider(
+            separatorBuilder: (_, __) =>  Divider(
                 height: 1,
                 indent: 56,
                 color: AppColors.borderLight),
@@ -1106,13 +1106,13 @@ class _QuickLinks extends StatelessWidget {
                 ),
                 title: Text(
                   link['label'] as String,
-                  style: const TextStyle(
+                  style:  TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 14,
                     color: AppColors.textPrimary,
                   ),
                 ),
-                trailing: const Icon(Icons.chevron_right,
+                trailing:  Icon(Icons.chevron_right,
                     color: AppColors.textTertiary,
                     size: 20),
                 onTap: link['onTap'] as VoidCallback,
@@ -1220,7 +1220,7 @@ class _LogoutButton extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler',
+            child:  Text('Annuler',
                 style: TextStyle(
                     fontFamily: 'Poppins',
                     color: AppColors.textSecondary)),

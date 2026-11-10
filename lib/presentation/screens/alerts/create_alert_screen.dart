@@ -272,12 +272,12 @@ class _CreateAlertScreenState
                       child: DropdownButton<String>(
                         value: _selectedCity,
                         isExpanded: true,
-                        style: const TextStyle(
+                        style:  TextStyle(
                           fontFamily: 'Poppins',
                           fontSize: 14,
                           color: AppColors.textPrimary,
                         ),
-                        icon: const Icon(
+                        icon:  Icon(
                             Icons.keyboard_arrow_down,
                             color: AppColors.textTertiary),
                         items: AppConstants.cities
@@ -369,7 +369,7 @@ class _CreateAlertScreenState
                             borderRadius:
                                 BorderRadius.circular(12),
                           ),
-                          child: const Icon(Icons.remove,
+                          child:  Icon(Icons.remove,
                               color:
                                   AppColors.textSecondary),
                         ),
@@ -379,7 +379,7 @@ class _CreateAlertScreenState
                             horizontal: 24),
                         child: Text(
                           '$_minRooms',
-                          style: const TextStyle(
+                          style:  TextStyle(
                             fontFamily: 'Poppins',
                             fontSize: 22,
                             fontWeight: FontWeight.w700,
@@ -519,7 +519,7 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       label,
-      style: const TextStyle(
+      style:  TextStyle(
         fontFamily: 'Poppins',
         fontSize: 16,
         fontWeight: FontWeight.w600,
