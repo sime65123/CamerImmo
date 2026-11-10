@@ -19,11 +19,9 @@ class SocialAuthButtons extends StatefulWidget {
 class _SocialAuthButtonsState extends State<SocialAuthButtons> {
   OAuthProvider? _loading;
 
-  /// Apple n'est proposé que sur iOS, macOS et le web.
-  bool get _showApple =>
-      kIsWeb ||
-      defaultTargetPlatform == TargetPlatform.iOS ||
-      defaultTargetPlatform == TargetPlatform.macOS;
+  /// Apple masqué tant que « Sign in with Apple » n'est pas configuré
+  /// (compte développeur Apple requis). Passer à true pour le réactiver.
+  bool get _showApple => false;
 
   Future<void> _signIn(OAuthProvider provider) async {
     if (_loading != null) return;
